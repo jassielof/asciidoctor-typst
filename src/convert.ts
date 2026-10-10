@@ -2,6 +2,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
 import { load, MemoryLogger } from "@asciidoctor/core";
+import type { AdocDocument, AdocNode } from "./ast.ts";
 import { TypstEmitter } from "./emit.ts";
 import { registerTypstConverter, setInlineHooks } from "./inline.ts";
 
@@ -31,7 +32,7 @@ export interface ConvertResult {
   typst: string;
   diagnostics: Diagnostic[];
   /** The parsed Asciidoctor document, for inspection. */
-  document: any;
+  document: AdocDocument;
 }
 
 export const DEFAULT_LIB = "/template/lib.typ";
@@ -49,7 +50,7 @@ export async function convert(source: string, options: ConvertOptions = {}): Pro
   const outputDir = options.outputDir ? resolve(options.outputDir) : undefined;
 
   const diagnostics: Diagnostic[] = [];
-  const warn = (message: string, node?: any) => {
+  const warn = (message: string, node?: AdocNode) => {
     const line = node?.getLineNumber?.() ?? undefined;
     diagnostics.push({ level: "warning", message, file: node?.getFile?.() ?? file, line });
   };
@@ -76,17 +77,24 @@ export async function convert(source: string, options: ConvertOptions = {}): Pro
   for (const [k, v] of Object.entries(options.attributes ?? {})) attributes[k] = v === null ? false : v;
   if (options.doctype) attributes.doctype = options.doctype;
 
-  const loadOptions = { safe: "safe", base_dir: baseDir, backend: "typst", sourcemap: true, attributes, logger };
-  const input = file ? { path: file, read: () => source } : source;
-  const doc = await load(input as any, loadOptions);
+  const loadOptions = {
+    safe: "safe",
+    base_dir: baseDir,
+    backend: "typst",
+    sourcemap: true,
+    attributes,
+    logger,
+  };
+  // The implementation accepts { path, read } (it derives docfile/docdir from it); its typings don't.
+  const input = (file ? { path: file, read: () => source } : source) as unknown as string;
+  const doc = (await load(input, loadOptions)) as unknown as AdocDocument;
 
   const doctype = options.doctype ?? (doc.getDoctype() === "book" ? "book" : "article");
 
   // Attributes the document (or caller) set, as opposed to Asciidoctor's built-ins.
-  const baseline = (await load("", { ...loadOptions, attributes: { "backend-pdf": "" } })).getAttributes() as Record<
-    string,
-    unknown
-  >;
+  const baseline = (
+    await load("", { ...loadOptions, attributes: { "backend-pdf": "" } })
+  ).getAttributes() as Record<string, unknown>;
   const headerAttributes: Record<string, string> = {};
   for (const [k, v] of Object.entries(doc.getAttributes() as Record<string, unknown>)) {
     if (NOISE.test(k) || typeof v !== "string") continue;
@@ -105,15 +113,15 @@ export async function convert(source: string, options: ConvertOptions = {}): Pro
   const typst = await emitter.emit();
 
   // Asciidoctor's own diagnostics (missing includes, unterminated blocks, ...).
-  for (const m of logger.messages as any[]) {
-    const sev = String(m.getSeverity?.() ?? "").toUpperCase();
+  for (const m of logger.messages) {
+    const sev = m.getSeverity().toUpperCase();
     if (sev !== "WARN" && sev !== "ERROR" && sev !== "FATAL") continue;
-    const loc = m.getSourceLocation?.();
+    const loc = m.getSourceLocation();
     diagnostics.push({
       level: sev === "WARN" ? "warning" : "error",
-      message: String(m.getText?.() ?? ""),
-      file: loc?.getFile?.() ?? loc?.file ?? file,
-      line: loc?.getLineNumber?.() ?? loc?.lineno ?? undefined,
+      message: m.getText(),
+      file: (loc?.getFile() as string | undefined) ?? file,
+      line: loc?.getLineNumber(),
     });
   }
   return { typst, diagnostics, document: doc };

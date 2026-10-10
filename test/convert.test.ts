@@ -145,13 +145,17 @@ describe("inline", () => {
     expect(await body("+*not bold*+ \\*x* ++a_b_c++")).toBe("\\*not bold\\* \\*x\\* a\\_b\\_c");
   });
   test("curly quotes and typographic replacements", async () => {
-    expect(await body('"`quoted`" and \'`single`\'')).toBe("“quoted” and ‘single’");
+    expect(await body("\"`quoted`\" and '`single`'")).toBe("“quoted” and ‘single’");
     expect(await body("(C) 2026 -> ok... it's")).toBe("© 2026 → ok\\.\\.\\.​ it’s".replace("\\.\\.\\.", "…"));
   });
   test("footnotes, kbd, menu, stem", async () => {
     expect(await body("a footnote:[note] b")).toBe("a #footnote[note] b");
-    expect(await body(":experimental:\n\nkbd:[Ctrl+Alt+Del] menu:File[Save As]")).toContain('#adoc-kbd("Ctrl", "Alt", "Del")');
-    expect(await body(":experimental:\n\nkbd:[Ctrl+Alt+Del] menu:File[Save As]")).toContain('#adoc-menu("File", "Save As")');
+    expect(await body(":experimental:\n\nkbd:[Ctrl+Alt+Del] menu:File[Save As]")).toContain(
+      '#adoc-kbd("Ctrl", "Alt", "Del")',
+    );
+    expect(await body(":experimental:\n\nkbd:[Ctrl+Alt+Del] menu:File[Save As]")).toContain(
+      '#adoc-menu("File", "Save As")',
+    );
     expect(await body("stem:[x^2]")).toBe('#adoc-math("asciimath", "x^2")');
     expect(await body(":stem: latexmath\n\nstem:[x^2]")).toBe('#adoc-math("latexmath", "x^2")');
   });
@@ -199,7 +203,9 @@ describe("blocks", () => {
   });
   test("admonitions", async () => {
     expect(await body("NOTE: careful")).toBe('#adoc-admonition("note")[\ncareful\n]');
-    expect(await body(".Title\n[WARNING]\n====\nbad\n====")).toBe('#adoc-admonition("warning", title: [Title])[\nbad\n]');
+    expect(await body(".Title\n[WARNING]\n====\nbad\n====")).toBe(
+      '#adoc-admonition("warning", title: [Title])[\nbad\n]',
+    );
   });
   test("source blocks, callouts and list", async () => {
     const out = await body("[source,zig]\n----\nconst a = 1; // <1>\n----\n<1> Explained");
@@ -267,7 +273,10 @@ describe("samples compile with typst", () => {
       async () => {
         const root = resolve(import.meta.dir, "..");
         mkdirSync(join(root, "out"), { recursive: true });
-        const result = await convertFile(join(root, rel), { outputDir: join(root, "out"), lib: "/template/lib.typ" });
+        const result = await convertFile(join(root, rel), {
+          outputDir: join(root, "out"),
+          lib: "/template/lib.typ",
+        });
         expect(result.diagnostics).toEqual([]);
         const out = join(root, "out", "test-" + rel.replace(/[\\/]/g, "_") + ".typ");
         writeFileSync(out, result.typst);

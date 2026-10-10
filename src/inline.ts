@@ -9,6 +9,7 @@
  * (entity-decoded and escaped for Typst) and tokens (expanded to Typst code).
  */
 import { ConverterBase } from "@asciidoctor/core";
+import type { AdocNode } from "./ast.ts";
 import { decodeEntities, escapeMarkup, labelName, str } from "./escape.ts";
 
 const OPEN = "";
@@ -47,7 +48,8 @@ function token(e: Entry): string {
   return `${OPEN}${table.length - 1}${CLOSE}`;
 }
 
-const atom = (code: string, extra: Partial<Atom> = {}): string => token({ k: "atom", code, expr: true, ...extra });
+const atom = (code: string, extra: Partial<Atom> = {}): string =>
+  token({ k: "atom", code, expr: true, ...extra });
 
 function wrap(open: string, close: string, text: string, mono = false): string {
   const pair = pairSeq++;
@@ -138,7 +140,7 @@ function renderParts(parts: Array<TextPart | TokPart>, opts: RenderOptions): str
     if (p.t === "text") {
       let s = escapeMarkup(decodeEntities(p.v), opts.colons);
       // `#f[x].y` is a field access and `#f[x](y)` a further call: keep following text literal.
-      if (prevExpr && /^(?:\.[\p{L}_]|[(\[])/u.test(s)) s = "\\" + s;
+      if (prevExpr && /^(?:\.[\p{L}_]|[([])/u.test(s)) s = "\\" + s;
       out += s;
       if (s !== "") prevExpr = false;
       continue;
@@ -146,11 +148,14 @@ function renderParts(parts: Array<TextPart | TokPart>, opts: RenderOptions): str
     const e = p.e;
     if (e.k === "atom") {
       out += e.code;
-      if (e.hardbreak && !(parts[i + 1]?.t === "text" && (parts[i + 1] as TextPart).v.startsWith("\n"))) out += "\n";
+      if (e.hardbreak && !(parts[i + 1]?.t === "text" && (parts[i + 1] as TextPart).v.startsWith("\n")))
+        out += "\n";
       if (e.code !== "") prevExpr = e.expr;
     } else if (e.k === "open") {
       if (e.mono) {
-        const close = parts.findIndex((q, j) => j > i && q.t === "tok" && q.e.k === "close" && q.e.pair === e.pair);
+        const close = parts.findIndex(
+          (q, j) => j > i && q.t === "tok" && q.e.k === "close" && q.e.pair === e.pair,
+        );
         const end = close < 0 ? parts.length : close;
         const inner = parts.slice(i + 1, end);
         if (inner.every((q) => q.t === "text")) {
@@ -180,10 +185,15 @@ const SPAN_ROLE = new Map<string, [string, string]>([
   ["overline", ["#overline[", "]"]],
 ]);
 
+/** Method provided by Asciidoctor's backend-traits mixin but missing from its typings. */
+interface BackendTraits {
+  initBackendTraits(traits: Record<string, string | boolean>): void;
+}
+
 export class TypstInlineConverter extends ConverterBase {
   constructor(backend: string, opts: object = {}) {
     super(backend, opts);
-    (this as any).initBackendTraits({
+    (this as unknown as BackendTraits).initBackendTraits({
       basebackend: "typst",
       filetype: "typ",
       outfilesuffix: ".typ",
@@ -191,7 +201,7 @@ export class TypstInlineConverter extends ConverterBase {
     });
   }
 
-  async convert_inline_quoted(node: any): Promise<string> {
+  async convert_inline_quoted(node: AdocNode): Promise<string> {
     const text: string = node.text ?? "";
     let result: string;
     switch (node.type) {
@@ -239,17 +249,17 @@ export class TypstInlineConverter extends ConverterBase {
     return result;
   }
 
-  async convert_inline_anchor(node: any): Promise<string> {
+  async convert_inline_anchor(node: AdocNode): Promise<string> {
     switch (node.type) {
       case "xref": {
         const attrs = node.attributes ?? {};
         let text: string | null = node.text ?? null;
-        if (attrs.path) {
+        if (typeof attrs.path === "string") {
           // Link to another document: Typst cannot resolve it.
           hooks.warn(`cross reference to another document is not resolved: ${attrs.path}`);
           return text ?? decodeEntities(String(attrs.path));
         }
-        const refid: string | undefined = attrs.refid;
+        const refid = attrs.refid as string | undefined;
         const refs = node.document.catalog.refs;
         const ref = refid ? refs[refid] : undefined;
         if (!ref && refid) {
@@ -257,16 +267,16 @@ export class TypstInlineConverter extends ConverterBase {
           return text ?? `[${refid}]`;
         }
         if (!text) {
-          const resolved: string | null = ref ? await ref.xreftext(node.getAttribute("xrefstyle", null, true)) : null;
+          const resolved = ref ? await ref.xreftext(node.getAttribute("xrefstyle", null, true)) : null;
           text = resolved ?? `[${refid}]`;
         }
         return atom(`#link(<${labelName(refid ?? "")}>)[`, { expr: false }) + text + atom("]");
       }
       case "ref":
-        return atom(`#metadata(none)<${labelName(node.id)}>`, { plain: "" });
+        return atom(`#metadata(none)<${labelName(node.id ?? "")}>`, { plain: "" });
       case "bibref":
         return (
-          atom(`#metadata(none)<${labelName(node.id)}>`, { plain: "" }) + `[${node.reftext || node.id}]`
+          atom(`#metadata(none)<${labelName(node.id ?? "")}>`, { plain: "" }) + `[${node.reftext || node.id}]`
         );
       case "link": {
         const url = decodeEntities(String(node.target ?? ""));
@@ -283,19 +293,19 @@ export class TypstInlineConverter extends ConverterBase {
     }
   }
 
-  async convert_inline_break(node: any): Promise<string> {
+  async convert_inline_break(node: AdocNode): Promise<string> {
     return (node.text ?? "") + token({ k: "atom", code: "\\", expr: false, plain: "\n", hardbreak: true });
   }
 
-  async convert_inline_button(node: any): Promise<string> {
+  async convert_inline_button(node: AdocNode): Promise<string> {
     return atom(`#adoc-btn(${str(plainText(node.text ?? ""))})`, { plain: plainText(node.text ?? "") });
   }
 
-  async convert_inline_callout(node: any): Promise<string> {
+  async convert_inline_callout(node: AdocNode): Promise<string> {
     return callout(String(node.text));
   }
 
-  async convert_inline_footnote(node: any): Promise<string> {
+  async convert_inline_footnote(node: AdocNode): Promise<string> {
     // A reused footnote (`footnote:id[]`) carries the id in `target`.
     const id: string | undefined = node.id || node.target || undefined;
     if (node.type === "xref") {
@@ -306,10 +316,12 @@ export class TypstInlineConverter extends ConverterBase {
       return atom(`#footnote(<fn-${labelName(id)}>)`, { plain: "" });
     }
     const label = id ? `<fn-${labelName(id)}>` : "";
-    return atom("#footnote[", { expr: false, plain: "" }) + (node.text ?? "") + atom(`]${label}`, { plain: "" });
+    return (
+      atom("#footnote[", { expr: false, plain: "" }) + (node.text ?? "") + atom(`]${label}`, { plain: "" })
+    );
   }
 
-  async convert_inline_image(node: any): Promise<string> {
+  async convert_inline_image(node: AdocNode): Promise<string> {
     const target = decodeEntities(String(node.target ?? ""));
     const alt = decodeEntities(String(node.getAlt?.() ?? node.getAttribute("alt") ?? ""));
     if (node.type === "icon") return atom(`#adoc-icon(${str(target)})`, { plain: alt });
@@ -329,7 +341,7 @@ export class TypstInlineConverter extends ConverterBase {
     return atom(`#box(${code})`, { plain: alt });
   }
 
-  async convert_inline_indexterm(node: any): Promise<string> {
+  async convert_inline_indexterm(node: AdocNode): Promise<string> {
     const raw = node.getAttribute("terms");
     const terms: string[] = Array.isArray(raw) && raw.length ? raw.map(String) : [String(node.text ?? "")];
     const visible = node.type === "visible";
@@ -339,13 +351,17 @@ export class TypstInlineConverter extends ConverterBase {
     });
   }
 
-  async convert_inline_kbd(node: any): Promise<string> {
+  async convert_inline_kbd(node: AdocNode): Promise<string> {
     const keys: string[] = node.getAttribute("keys") ?? [];
     return atom(`#adoc-kbd(${keys.map((k) => str(plainText(k))).join(", ")})`, { plain: keys.join("+") });
   }
 
-  async convert_inline_menu(node: any): Promise<string> {
-    const items = [node.getAttribute("menu"), ...(node.getAttribute("submenus") ?? []), node.getAttribute("menuitem")]
+  async convert_inline_menu(node: AdocNode): Promise<string> {
+    const items = [
+      node.getAttribute("menu"),
+      ...(node.getAttribute("submenus") ?? []),
+      node.getAttribute("menuitem"),
+    ]
       .filter((x): x is string => typeof x === "string" && x !== "")
       .map((x) => plainText(x));
     return atom(`#adoc-menu(${items.map(str).join(", ")})`, { plain: items.join(" > ") });
@@ -371,6 +387,6 @@ export function dimension(v: unknown): string | undefined {
 let registered = false;
 export function registerTypstConverter(): void {
   if (registered) return;
-  (TypstInlineConverter as any).registerFor("typst");
+  TypstInlineConverter.registerFor("typst");
   registered = true;
 }

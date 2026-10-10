@@ -7,6 +7,7 @@
  */
 import { relative, resolve, sep } from "node:path";
 import { escapeMarkup, escapeLineStarts, indent, labelName, str, decodeEntities } from "./escape.ts";
+import { contentParts, contentText, dlistEntries, type AdocDocument, type AdocNode } from "./ast.ts";
 import { dimension, extractCallouts, plainText, renderInline } from "./inline.ts";
 
 export interface EmitOptions {
@@ -18,7 +19,7 @@ export interface EmitOptions {
   /** Directory of the AsciiDoc source / of the output, used to re-base image paths. */
   sourceDir?: string;
   outputDir?: string;
-  warn(message: string, node?: any): void;
+  warn(message: string, node?: AdocNode): void;
 }
 
 const SPECIAL = new Set([
@@ -43,7 +44,7 @@ export class TypstEmitter {
   private hasParts = false;
 
   constructor(
-    private doc: any,
+    private doc: AdocDocument,
     private o: EmitOptions,
   ) {}
 
@@ -58,7 +59,7 @@ export class TypstEmitter {
     return Array.isArray(v) ? v : [];
   }
 
-  private roles(node: any): string[] {
+  private roles(node: AdocNode): string[] {
     const r = node.role;
     if (!r) return [];
     return Array.isArray(r) ? r : String(r).split(/\s+/).filter(Boolean);
@@ -92,7 +93,7 @@ export class TypstEmitter {
 
     // ---- header
     const args: string[] = [];
-    const t = doc.getDocumentTitle?.({ partition: true });
+    const t = doc.getDocumentTitle({ partition: true });
     let main: string | undefined;
     let sub: string | undefined;
     if (t && typeof t === "object") {
@@ -102,20 +103,20 @@ export class TypstEmitter {
     args.push(`title: ${main ? `[${this.inline(main)}]` : "none"}`);
     if (sub) args.push(`subtitle: [${this.inline(sub)}]`);
 
-    const authors: any[] = this.list(doc.getAuthors?.());
+    const authors = doc.getAuthors();
     args.push(
       `authors: (${authors
         .map((a) => {
-          const email = a.getEmail?.() ?? a.email;
-          return `(name: ${str(String(a.getName?.() ?? a.name))}${email ? `, email: ${str(String(email))}` : ""})`;
+          const email = a.getEmail();
+          return `(name: ${str(a.getName())}${email ? `, email: ${str(String(email))}` : ""})`;
         })
         .join(", ")}${authors.length === 1 ? "," : ""})`,
     );
 
     const rev = {
-      number: doc.getRevisionNumber?.(),
-      date: doc.getRevisionDate?.(),
-      remark: doc.getRevisionRemark?.(),
+      number: doc.getRevisionNumber(),
+      date: doc.getRevisionDate(),
+      remark: doc.getRevisionRemark(),
     };
     const revFields = Object.entries(rev)
       .filter(([, v]) => v !== undefined && v !== null && v !== "")
@@ -133,8 +134,8 @@ export class TypstEmitter {
     return parts.join("\n\n") + "\n";
   }
 
-  private containsPart(node: any): boolean {
-    for (const b of this.list<any>(node.blocks)) {
+  private containsPart(node: AdocNode): boolean {
+    for (const b of this.list<AdocNode>(node.blocks)) {
       if (b.context === "section" && (b.sectname === "part" || b.level === 0)) return true;
     }
     return false;
@@ -142,7 +143,7 @@ export class TypstEmitter {
 
   // ------------------------------------------------------------ blocks
 
-  private async blocks(blocks: any[]): Promise<string> {
+  private async blocks(blocks: AdocNode[]): Promise<string> {
     const out: string[] = [];
     let prev = "";
     for (const b of blocks) {
@@ -158,7 +159,7 @@ export class TypstEmitter {
     return out.join("\n\n");
   }
 
-  private async block(b: any): Promise<string> {
+  private async block(b: AdocNode): Promise<string> {
     let s = await this.blockCore(b);
     if (s === "") return s;
     const skip = new Set(["section", "thematic_break", "page_break", "toc", "floating_title"]);
@@ -173,30 +174,30 @@ export class TypstEmitter {
     return s;
   }
 
-  private title(b: any): string | undefined {
+  private title(b: AdocNode): string | undefined {
     const t = b.hasTitle?.() ? b.title : undefined;
     return t ? this.inline(t) : undefined;
   }
 
-  private withTitle(b: any, body: string): string {
+  private withTitle(b: AdocNode, body: string): string {
     const t = this.title(b);
     return t === undefined ? body : `#adoc-block-title[${t}]\n${body}`;
   }
 
-  private figure(expr: string, b: any): string {
+  private figure(expr: string, b: AdocNode): string {
     const title = this.title(b);
     if (title === undefined) return `#${expr}`;
     return `#figure(\n${indent(expr, "  ")},\n  caption: [${title}],\n)`;
   }
 
   /** Paragraph-ish content (simple content model) or nested blocks (compound). */
-  private async content(b: any): Promise<string> {
+  private async content(b: AdocNode): Promise<string> {
     if (b.contentModel === "compound") return this.blocks(this.list(b.blocks));
-    const c = await b.content();
+    const c = await contentText(b);
     return typeof c === "string" ? this.inline(c) : "";
   }
 
-  private async blockCore(b: any): Promise<string> {
+  private async blockCore(b: AdocNode): Promise<string> {
     switch (b.context) {
       case "section":
         return this.section(b);
@@ -208,11 +209,11 @@ export class TypstEmitter {
       case "preamble":
         return this.blocks(this.list(b.blocks));
       case "paragraph":
-        return this.withTitle(b, this.inline(await b.content()));
+        return this.withTitle(b, this.inline(await contentText(b)));
       case "listing":
         return this.listing(b);
       case "literal": {
-        const text = decodeEntities(plainText(await b.content()));
+        const text = decodeEntities(plainText(await contentText(b)));
         return this.figure(`raw(block: true, ${str(text)})`, b);
       }
       case "example":
@@ -242,13 +243,13 @@ export class TypstEmitter {
       }
       case "verse": {
         const a = await this.attribution(b);
-        const text: string = await b.content();
+        const text: string = await contentText(b);
         const lines = text.split("\n").map((l) => this.inline(l));
         const v = `#adoc-verse(${a ? `attribution: [${a}]` : ""})[\n${lines.join(" \\\n")}\n]`;
         return this.withTitle(b, v);
       }
       case "pass": {
-        const text = String(await b.content());
+        const text = String(await contentText(b));
         if (b.style !== "typst" && /^\s*<[!/a-zA-Z]/.test(text)) {
           this.o.warn("passthrough block looks like HTML and was dropped", b);
           return "";
@@ -257,14 +258,14 @@ export class TypstEmitter {
       }
       case "stem": {
         const kind = /latex/i.test(String(b.style)) ? "latexmath" : "asciimath";
-        return `#adoc-math(${str(kind)}, ${str(plainText(String(await b.content())))}, block: true)`;
+        return `#adoc-math(${str(kind)}, ${str(plainText(String(await contentText(b))))}, block: true)`;
       }
       case "ulist":
       case "olist":
         return this.withTitle(b, await this.bulletList(b));
       case "colist": {
         const items: string[] = [];
-        for (const it of this.list<any>(b.items)) items.push(`[${await this.itemContent(it)}]`);
+        for (const it of this.list<AdocNode>(b.items)) items.push(`[${await this.itemContent(it)}]`);
         return this.withTitle(b, `#adoc-callout-list((${items.join(", ")},))`);
       }
       case "dlist":
@@ -293,7 +294,7 @@ export class TypstEmitter {
     }
   }
 
-  private async attribution(b: any): Promise<string | undefined> {
+  private async attribution(b: AdocNode): Promise<string | undefined> {
     const parts: string[] = [];
     for (const key of ["attribution", "citetitle"]) {
       const v = b.getAttribute(key);
@@ -308,7 +309,7 @@ export class TypstEmitter {
     return this.hasParts ? level + 1 : Math.max(level, 1);
   }
 
-  private async section(s: any): Promise<string> {
+  private async section(s: AdocNode): Promise<string> {
     const level = this.headingLevel(s.level);
     const title = this.inline(s.title);
     const label = s.id ? ` <${labelName(s.id)}>` : "";
@@ -325,8 +326,8 @@ export class TypstEmitter {
 
   // ------------------------------------------------------------ verbatim
 
-  private async listing(b: any): Promise<string> {
-    const { text, callouts } = extractCallouts(String(await b.content()));
+  private async listing(b: AdocNode): Promise<string> {
+    const { text, callouts } = extractCallouts(String(await contentText(b)));
     const style = b.style;
     let lang: string | undefined = b.getAttribute("language") || undefined;
     if (style !== "source" && !lang) lang = undefined;
@@ -347,17 +348,17 @@ export class TypstEmitter {
 
   // ------------------------------------------------------------ lists
 
-  private async itemContent(item: any): Promise<string> {
+  private async itemContent(item: AdocNode): Promise<string> {
     const text = this.inline(item.text);
     const kids: string[] = [];
-    for (const c of this.list<any>(item.blocks)) {
+    for (const c of this.list<AdocNode>(item.blocks)) {
       const s = await this.block(c);
       if (s) kids.push(s);
     }
     return kids.length ? `${text}\n\n${kids.join("\n\n")}` : text;
   }
 
-  private async itemBody(text: string, children: any[]): Promise<string> {
+  private async itemBody(text: string, children: AdocNode[]): Promise<string> {
     let out = indent(text, "  ").replace(/^ {2}/, "");
     for (const child of children) {
       const s = await this.block(child);
@@ -368,7 +369,7 @@ export class TypstEmitter {
     return out;
   }
 
-  private async bulletList(b: any): Promise<string> {
+  private async bulletList(b: AdocNode): Promise<string> {
     const lines: string[] = [];
     const ordered = b.context === "olist";
     let numbering: string | undefined;
@@ -393,7 +394,7 @@ export class TypstEmitter {
     const startAttr = ordered ? b.getAttribute("start") : undefined;
     const checklist = !ordered && b.hasOption?.("checklist");
     let idx = 0;
-    for (const item of this.list<any>(b.items)) {
+    for (const item of this.list<AdocNode>(b.items)) {
       let marker = "- ";
       if (ordered) marker = idx === 0 && startAttr && String(startAttr) !== "1" ? `${startAttr}. ` : "+ ";
       let text = this.inline(item.text);
@@ -408,10 +409,10 @@ export class TypstEmitter {
     return body;
   }
 
-  private async dlist(b: any): Promise<string> {
+  private async dlist(b: AdocNode): Promise<string> {
     const lines: string[] = [];
-    for (const [terms, dd] of this.list<any>(b.blocks)) {
-      const term = this.list<any>(terms)
+    for (const [terms, dd] of dlistEntries(b)) {
+      const term = this.list<AdocNode>(terms)
         .map((t) => this.inline(t.text, { colons: true }))
         .join("#linebreak()");
       const desc = dd ? this.inline(dd.text) : "";
@@ -423,7 +424,7 @@ export class TypstEmitter {
 
   // ------------------------------------------------------------ images
 
-  private async imageBlock(b: any): Promise<string> {
+  private async imageBlock(b: AdocNode): Promise<string> {
     const target = String(b.getAttribute("target"));
     const alt = decodeEntities(String(b.getAttribute("alt") ?? ""));
     const path = this.imagePath(target);
@@ -432,7 +433,9 @@ export class TypstEmitter {
       return `#link(${str(target)})[${escapeMarkup(alt)}]`;
     }
     const args = [str(path), `alt: ${str(alt)}`];
-    const w = dimension(b.getAttribute("width") ?? b.getAttribute("scaledwidth") ?? b.getAttribute("pdfwidth"));
+    const w = dimension(
+      b.getAttribute("width") ?? b.getAttribute("scaledwidth") ?? b.getAttribute("pdfwidth"),
+    );
     const h = dimension(b.getAttribute("height"));
     if (w) args.push(`width: ${w}`);
     if (h) args.push(`height: ${h}`);
@@ -446,18 +449,18 @@ export class TypstEmitter {
 
   // ------------------------------------------------------------ tables
 
-  private async cell(c: any, inHead: boolean): Promise<string> {
+  private async cell(c: AdocNode, inHead: boolean): Promise<string> {
     let body: string;
     const style: string = c.style ?? "none";
     if (style === "asciidoc") {
-      const inner = c.getInnerDocument?.() ?? c.innerDocument;
+      const inner = c.getInnerDocument();
       body = inner ? await this.blocks(this.list(inner.blocks)) : "";
     } else if (inHead) {
       body = this.inline(c.text);
     } else if (style === "literal") {
       body = `#raw(block: true, ${str(plainText(String(c.text ?? "")))})`;
     } else {
-      const paragraphs: string[] = this.list(await c.content());
+      const paragraphs = await contentParts(c);
       body = paragraphs.map((p) => this.inline(p)).join("\n\n");
     }
     const args: string[] = [];
@@ -474,8 +477,8 @@ export class TypstEmitter {
     return args.length > 0 ? `table.cell(${args.join(", ")})${content}` : content;
   }
 
-  private async table(b: any): Promise<string> {
-    const columns: any[] = this.list(b.columns);
+  private async table(b: AdocNode): Promise<string> {
+    const columns: AdocNode[] = this.list(b.columns);
     const autowidth = b.hasOption?.("autowidth");
     const widths = columns.map((c) => {
       if (autowidth || c.hasOption?.("autowidth")) return "auto";
@@ -489,10 +492,11 @@ export class TypstEmitter {
     if (aligns.some((a) => a !== "left")) {
       lines.push(`  align: (${aligns.join(", ")}${aligns.length === 1 ? "," : ""}),`);
     }
-    if (b.getAttribute("frame") === "none" && b.getAttribute("grid") === "none") lines.push("  stroke: none,");
+    if (b.getAttribute("frame") === "none" && b.getAttribute("grid") === "none")
+      lines.push("  stroke: none,");
 
     const rows = b.rows ?? { head: [], body: [], foot: [] };
-    const render = async (rs: any[][], head: boolean) => {
+    const render = async (rs: AdocNode[][], head: boolean) => {
       const out: string[] = [];
       for (const r of rs) {
         const cells: string[] = [];
