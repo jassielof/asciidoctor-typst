@@ -16,23 +16,15 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
-
-      # The sample tests compile the generated Typst.
-      - uses: typst-community/setup-typst@v4
-
-      - run: bun install --frozen-lockfile
-
+      - uses: typst-community/setup-typst@v5
+      - run: bun install
       - name: Type-check
         run: bun run typecheck
-
       - name: Lint
         run: bun run lint
-
       - name: Format
         run: bun run format:check
-
       - name: Test
         run: bun test

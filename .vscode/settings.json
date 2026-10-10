@@ -1,5 +1,8 @@
 {
     "tinymist.previewFeature": "enable",
     "tinymist.syntaxOnly": "auto",
-    "tinymist.preview.partialRendering": true
+    "tinymist.preview.partialRendering": true,
+    "tinymist.fontPaths": [
+        "${workspaceFolder}/assets/fonts"
+    ]
 }
