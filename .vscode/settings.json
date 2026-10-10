@@ -1,0 +1,5 @@
+{
+    "tinymist.previewFeature": "enable",
+    "tinymist.syntaxOnly": "auto",
+    "tinymist.preview.partialRendering": true
+}
