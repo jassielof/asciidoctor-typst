@@ -24,7 +24,7 @@ AST to Typst; there is no intermediate format (no DocBook, no HTML).
 ## Usage
 
 ```sh
-bun src/index.ts samples/docent.adoc -o out/docent.typ
+bun src/index.ts tests/fixtures/docent.adoc -o out/docent.typ
 typst compile --root . out/docent.typ
 ```
 
@@ -156,9 +156,17 @@ bun run check                  # typecheck, lint, format check and tests
 
 Layout:
 
-- `tests/convert.test.ts` – focused unit tests (escaping, inline, blocks, bibliography, …).
-- `tests/fixtures/*.adoc` – small fixtures, one per feature area (`includes/` holds a multi-file one).
-- `tests/snapshots/` – expected Typst for every fixture and for the samples, plus
-  `*.diagnostics.txt` where a fixture is expected to produce warnings. Each snapshot is also
-  compiled with `typst` to prove it is valid.
-- `samples/` – real-world examples (`docent.adoc`, `upsa-regulations.adoc`, and the multipart book).
+- `tests/fixtures/` – the AsciiDoc inputs: small ones per feature area (`lists.adoc`, `tables.adoc`,
+  `bibliography.adoc`, …), a multi-file one (`includes/main.adoc`) and two real-world documents
+  (`docent.adoc`, `upsa-regulations.adoc`).
+- `tests/snapshots/` – the expected Typst for every fixture (`<fixture>.typ`), plus
+  `<fixture>.diagnostics.txt` where it is expected to warn. Each snapshot is also compiled with
+  `typst` to prove it is valid.
+- `tests/snapshots.test.ts` – compares every fixture with its snapshot and compiles it.
+- `tests/convert.test.ts` – behavioural assertions, also driven by the fixtures, so a failure points
+  at one behaviour instead of a whole-file diff.
+- `tests/escape.test.ts` – pure unit tests of the escaping helpers.
+- `tests/fixtures.ts` – fixture discovery and conversion shared by the test files.
+
+To add a case: drop an `.adoc` in `tests/fixtures/`, run `UPDATE_SNAPSHOTS=1 bun test`, review the new
+snapshot, and add assertions to `convert.test.ts` if it exercises new behaviour.

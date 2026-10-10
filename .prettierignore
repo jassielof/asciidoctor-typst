@@ -1,4 +1,7 @@
 out
 node_modules
 bun.lock
-samples
+.vscode
+# Generated Typst and the AsciiDoc inputs they are built from
+tests/fixtures
+tests/snapshots
