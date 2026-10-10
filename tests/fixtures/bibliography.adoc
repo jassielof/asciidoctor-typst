@@ -1,0 +1,22 @@
+= Bibliography
+:zig-version: 0.16.0
+:doctype: book
+
+Usage in citations <<dcm-dev>> and <<doctests,customlabeled>>, then <<apa>>.
+
+[bibliography]
+== References
+
+.Flutter/Dart
+* [[[dcm-dev,flutter-dcm]]] https://dcm.dev/.
+
+.Zig
+* [[[doctests]]] Doctests in the Zig documentation — https://ziglang.org/documentation/{zig-version}/#Doctests
+* [[[top-level-doc-comments]]] Top-level documentation comments in the Zig documentation — https://ziglang.org/documentation/{zig-version}/#Top-Level-Doc-Comments
+* [[[doc-comments,zig-doc-comments]]] Doc comments in the Zig documentation — https://ziglang.org/documentation/{zig-version}/#Doc-Comments
+
+.Books
+* [[[apa]]] Hunt & Thomas. (1999). _The Pragmatic Programmer_. Addison-Wesley.
+* [[[nested]]] An entry with nested items.
+** Section 2.5: _Limiting complexity_.
+* An entry without an anchor, still listed.

@@ -1,0 +1,17 @@
+= Cross references and footnotes
+
+See <<target>>, <<target,custom text>> and xref:target[an xref macro].
+
+Also <<_a_section>> and <<anchored>>.
+
+[[anchored]]A paragraph with an inline anchor.
+
+== A section
+
+Text with a footnote.footnote:[The note text.]
+Reused: footnote:shared[A shared note.] and again footnote:shared[].
+
+[[target]]
+== Target section
+
+An unresolved reference: <<does-not-exist>>.

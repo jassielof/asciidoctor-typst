@@ -1,0 +1,54 @@
+= Tables
+
+.Captioned table
+[cols="1,2,1",options="header"]
+|===
+|Name |Description |Count
+
+|alpha
+|The first letter, with *markup*.
+|1
+
+|beta
+|`monospace` cell
+|2
+|===
+
+[cols="<,^,>"]
+|===
+|left |center |right
+|1 |2 |3
+|===
+
+.Spans
+|===
+|A |B |C
+
+2+|spans two columns |x
+.2+|spans two rows |y |z
+|w |v
+|===
+
+[%header,format=csv]
+|===
+name,value
+x,1
+y,2
+|===
+
+[cols="1a,1"]
+|===
+|
+* list in a cell
+* another
+
+Paragraph in a cell.
+|plain
+|===
+
+[%header%footer]
+|===
+|H1 |H2
+|a |b
+|F1 |F2
+|===

@@ -1,0 +1,64 @@
+= Lists
+
+* unordered one
+** nested
+*** deeper
+* unordered two
+
+//-
+
+. ordered one
+.. nested
+. ordered two
+
+//-
+
+[start=4]
+. starts at four
+. five
+
+//-
+
+[loweralpha]
+. alpha a
+. alpha b
+
+//-
+
+[upperroman]
+. roman I
+. roman II
+
+//-
+
+* [x] checked
+* [ ] unchecked
+
+//-
+
+* a list item
++
+with an attached paragraph
++
+----
+and an attached listing
+----
+* the next item
+
+//-
+
+Term one:: Definition one.
+Term two::
+Definition on the next line.
+Parent::
+Child::: Nested definition.
+
+//-
+
+.A captioned list
+* captioned item
+
+//-
+
+First term::
+Second term:: Shared definition.

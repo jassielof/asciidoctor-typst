@@ -1,0 +1,10 @@
+= Includes
+:doctype: book
+
+include::partials/chapter.adoc[leveloffset=+1]
+
+include::partials/tagged.adoc[tag=snippet]
+
+== Back to the main file
+
+Text.

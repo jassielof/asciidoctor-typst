@@ -1,0 +1,32 @@
+= An Article: With a Subtitle
+Jane Doe <jane@example.org>
+v2.1, 2026-03-04: Second draft
+:toc:
+:sectnums:
+:lang: en
+:custom-attribute: custom value
+
+A preamble paragraph before the first section.
+
+== First section
+
+Text in the first section, mentioning {custom-attribute}.
+
+=== Nested section
+
+[[explicit-id]]
+==== Deeper section with an explicit id
+
+[discrete]
+=== A discrete heading
+
+Not part of the outline.
+
+[#role-id.some-role]
+== Section with shorthand id and role
+
+Text.
+
+== Section with `monospace` and _emphasis_ in the title
+
+Text.

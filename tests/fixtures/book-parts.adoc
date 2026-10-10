@@ -1,0 +1,57 @@
+= The Book: Parts and Chapters
+:doctype: book
+:sectnums:
+
+[abstract]
+An abstract.
+
+[dedication]
+== For someone
+
+To someone.
+
+[preface]
+== Preface
+
+A preface.
+
+= Part One
+
+[partintro]
+--
+Introduction to part one.
+--
+
+== First chapter
+
+Chapter text.
+
+=== A section
+
+Section text.
+
+== Second chapter
+
+More text.
+
+= Part Two
+
+== Third chapter
+
+Text.
+
+[appendix]
+== Extra material
+
+Appendix text.
+
+[glossary]
+== Glossary
+
+term::
+definition
+
+[colophon]
+== Colophon
+
+Made with Typst.

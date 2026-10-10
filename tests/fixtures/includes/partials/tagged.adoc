@@ -1,0 +1,5 @@
+Not included.
+// tag::snippet[]
+Only this line is included.
+// end::snippet[]
+Not included either.

@@ -1,0 +1,65 @@
+= Blocks
+
+NOTE: A note.
+
+[TIP]
+.Titled tip
+====
+Compound admonition content.
+
+* with a list
+====
+
+WARNING: Careful.
+
+[quote, Edsger W. Dijkstra, Letter]
+____
+Simplicity is prerequisite for reliability.
+____
+
+[verse, Anonymous]
+____
+Roses are red
+Violets are blue
+____
+
+.Sidebar title
+****
+A sidebar.
+****
+
+.Example title
+====
+An example.
+====
+
+--
+An open block.
+--
+
+[typst]
+++++
+#lorem(5)
+++++
+
+'''
+
+<<<
+
+// a line comment
+
+////
+a block comment
+////
+
+[.lead]
+A paragraph with a role.
+
+[%hardbreaks]
+Line one
+Line two
+
+.A captioned image
+image::images/diagram.svg[A diagram,200,align=center]
+
+Inline image:images/diagram.svg[icon,16] in a sentence.

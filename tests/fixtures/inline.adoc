@@ -1,0 +1,30 @@
+= Inline
+:experimental:
+
+*strong* _emphasis_ `monospace` #mark# ^super^ ~sub~ **un**constrained.
+
+*_nested_ `inside`*
+
+[.underline]#underlined#, [.line-through]#struck#, [.custom-role]#custom#.
+
+"`double quoted`" and '`single quoted`'.
+
+https://example.org[A link] and https://example.org/bare and mailto:jane@example.org[mail].
+
+(C) (R) (TM) -- dashes... arrows -> => and it's.
+
+Escapes: \*not bold*, 50% of $5 # tag, a_b_c, <angle>, [brackets], @mention, 1. not a list.
+
+A hard break +
+continues.
+
+kbd:[Ctrl+Shift+N], btn:[OK], menu:File[Save As].
+
+Inline math stem:[x^2] and latexmath:[\sqrt{2}].
+
+An index term ((visible)) and (((hidden, term))).
+
+Line starts that look like markup:
+= not a heading
+- not a list
++ not a list

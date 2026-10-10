@@ -1,0 +1,7 @@
+= Included chapter
+
+Text from the included file.
+
+== Included section
+
+Text.
