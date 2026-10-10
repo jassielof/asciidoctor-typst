@@ -1,13 +1,19 @@
 = Reglamentos: Universidad Privada de Santa Cruz de la Sierra
-Kismet Lee
-v3: An icy winter incarnation
+Jassiel Ovando_F. <jassielovando@protonmail.com>; Vivienne Y.;
+:revremark: Adaptado de los reglamentos oficiales de la Universidad Privada de Santa Cruz de la Sierra, Bolivia.
+:revnumber: 1.0
+:revdate: {docdate}
+:version-label: Versión
 :doctype: book
+:title-logo-image: image:upsa-cross-green.svg[pdfwidth=25%]
 :lang: es
 
 [abstract]
 == Abstract
 
 Este repositorio contiene los reglamentos de la Universidad Privada de Santa Cruz de la Sierra, Bolivia.
+
+{authorinitials_1}, {lastname_1}, {lastname_2}
 
 [abstract]
 --

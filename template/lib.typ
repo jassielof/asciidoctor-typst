@@ -27,6 +27,7 @@
     title: if title != none { title } else { [] },
     author: authors.map(a => a.name),
   )
+
   set page(paper: "a4")
   set text(lang: attributes.at("lang", default: "en"))
   set par(justify: true)
@@ -35,8 +36,12 @@
   // Title page.
   {
     set align(horizon + right)
+    v(55%)
 
-    if title != none { text(2.4em, weight: "bold", title) }
+    if title != none {
+      text(2.4em, weight: "bold", title)
+    }
+
     if subtitle != none {
       v(0.4em)
       text(1.4em, subtitle)
@@ -44,6 +49,7 @@
     v(2em)
     for a in authors [#a.name \ ]
     if "date" in revision { revision.date }
+    v(1fr)
     pagebreak()
   }
 
@@ -256,3 +262,6 @@
 
 /// Index term. `terms` is `(primary, secondary, tertiary)`; visible terms are printed.
 #let adoc-indexterm(terms, visible: false) = if visible { terms.first() }
+
+/// References:
+/// - https://github.com/asciidoctor/asciidoctor-pdf/blob/main/data/themes/default-theme.yml
