@@ -5,3 +5,7 @@ bun.lock
 # Generated Typst and the AsciiDoc inputs they are built from
 tests/fixtures
 tests/snapshots
+# Vendored fonts and upstream Asciidoctor PDF themes
+assets
+references
+typst-templates
