@@ -30,6 +30,11 @@ export interface ConvertOptions {
 
 export interface ConvertResult {
   typst: string;
+  /**
+   * Hayagriva YAML for each `[bibliography]` section, in document order. They are already
+   * embedded in `typst` as `bytes(...)`; this is for callers that want them as files.
+   */
+  bibliographies: string[];
   diagnostics: Diagnostic[];
   /** The parsed Asciidoctor document, for inspection. */
   document: AdocDocument;
@@ -39,7 +44,7 @@ export const DEFAULT_LIB = "/template/lib.typ";
 
 /** Attributes that are always derived and never interesting to the template. */
 const NOISE =
-  /^(?:doc|local)(?:date|time|year|datetime)$|^doc(?:file|filesuffix|name|dir|title)$|^doctype-|^(?:asciidoctor|safe-mode|backend-|basebackend-|filetype-)/;
+  /^(?:doc|local)(?:date|time|year|datetime)$|^doc(?:file|filesuffix|name|dir|title)$|^doctype-|^(?:author|firstname|middlename|lastname|authorinitials|authors|authorcount|email|revnumber|revdate|revremark)(?:_\d+)?$|^(?:asciidoctor|safe-mode|backend-|basebackend-|filetype-)/;
 
 export async function convert(source: string, options: ConvertOptions = {}): Promise<ConvertResult> {
   registerTypstConverter();
@@ -66,7 +71,7 @@ export async function convert(source: string, options: ConvertOptions = {}): Pro
     },
   });
 
-  const attributes: Record<string, string | boolean> = {
+  const defaults: Record<string, string | boolean> = {
     // Typst produces PDF, so documents written for asciidoctor-pdf keep working.
     "backend-pdf": "",
     // No external highlighter runs for this backend; Typst highlights `raw` itself.
@@ -74,6 +79,7 @@ export async function convert(source: string, options: ConvertOptions = {}): Pro
     // Report references to undefined attributes instead of silently skipping them.
     "attribute-missing": "warn",
   };
+  const attributes: Record<string, string | boolean> = { ...defaults };
   for (const [k, v] of Object.entries(options.attributes ?? {})) attributes[k] = v === null ? false : v;
   if (options.doctype) attributes.doctype = options.doctype;
 
@@ -92,9 +98,10 @@ export async function convert(source: string, options: ConvertOptions = {}): Pro
   const doctype = options.doctype ?? (doc.getDoctype() === "book" ? "book" : "article");
 
   // Attributes the document (or caller) set, as opposed to Asciidoctor's built-ins.
-  const baseline = (
-    await load("", { ...loadOptions, attributes: { "backend-pdf": "" } })
-  ).getAttributes() as Record<string, unknown>;
+  const baseline = (await load("", { ...loadOptions, attributes: defaults })).getAttributes() as Record<
+    string,
+    unknown
+  >;
   const headerAttributes: Record<string, string> = {};
   for (const [k, v] of Object.entries(doc.getAttributes() as Record<string, unknown>)) {
     if (NOISE.test(k) || typeof v !== "string") continue;
@@ -124,7 +131,7 @@ export async function convert(source: string, options: ConvertOptions = {}): Pro
       line: loc?.getLineNumber(),
     });
   }
-  return { typst, diagnostics, document: doc };
+  return { typst, bibliographies: emitter.bibliographies, diagnostics, document: doc };
 }
 
 export async function convertFile(path: string, options: ConvertOptions = {}): Promise<ConvertResult> {

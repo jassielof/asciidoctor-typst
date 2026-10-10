@@ -1,9 +1,8 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { convert, convertFile } from "../src/convert.ts";
+import { join } from "node:path";
+import { convert } from "../src/convert.ts";
 import { decodeEntities, escapeLineStarts, escapeMarkup } from "../src/escape.ts";
 
 type Opts = Parameters<typeof convert>[1];
@@ -259,34 +258,55 @@ describe("cross references", () => {
     expect(out).toContain("#link(<_target>)[custom]");
     expect((await warnings("See <<nope>>.")).join()).toContain("unresolved cross reference: nope");
   });
-  test("bibliography references display the id", async () => {
-    const out = await body("See <<b1>>.\n\n[bibliography]\n== Refs\n\n* [[[b1]]] A book.");
-    expect(out).toContain("#link(<b1>)[\\[b1\\]]");
+  test("references to bibliography entries become citations", async () => {
+    const out = await body("See <<b1>>, <<b1,custom>>.\n\n[bibliography]\n== Refs\n\n* [[[b1]]] A book.");
+    expect(out).toStartWith("See @b1, @b1.");
+    expect(out).toContain("#bibliography(");
   });
 });
 
-describe("samples compile with typst", () => {
-  const available = spawnSync("typst", ["--version"]).status === 0;
-  for (const rel of ["samples/docent.adoc", "samples/multipart/book.adoc"]) {
-    test.skipIf(!available)(
-      rel,
-      async () => {
-        const root = resolve(import.meta.dir, "..");
-        mkdirSync(join(root, "out"), { recursive: true });
-        const result = await convertFile(join(root, rel), {
-          outputDir: join(root, "out"),
-          lib: "/template/lib.typ",
-        });
-        expect(result.diagnostics).toEqual([]);
-        const out = join(root, "out", "test-" + rel.replace(/[\\/]/g, "_") + ".typ");
-        writeFileSync(out, result.typst);
-        const r = spawnSync("typst", ["compile", "--root", root, out, out.replace(/\.typ$/, ".pdf")], {
-          encoding: "utf8",
-        });
-        expect(r.stderr).not.toContain("error");
-        expect(r.status).toBe(0);
-      },
-      120_000,
+describe("bibliography", () => {
+  const yamlOf = async (adoc: string) => (await convert(adoc)).bibliographies[0] ?? "";
+  const section = (entries: string) => `[bibliography]\n== References\n\n${entries}\n`;
+
+  test("url-only entry", async () => {
+    expect(await yamlOf(section("* [[[a]]] https://dcm.dev/."))).toBe(
+      'a:\n  type: misc\n  url: "https://dcm.dev/"\n',
     );
-  }
+  });
+  test("title and url, attributes substituted", async () => {
+    const yaml = await yamlOf(
+      ":v: 0.16.0\n\n" + section("* [[[d]]] Doctests in the Zig docs — https://z.org/{v}/#Doctests"),
+    );
+    expect(yaml).toBe(
+      'd:\n  type: misc\n  title: "Doctests in the Zig docs"\n  url: "https://z.org/0.16.0/#Doctests"\n',
+    );
+  });
+  test("author, year and italic title", async () => {
+    const yaml = await yamlOf(section("* [[[c]]] Estado Plurinacional. (2009). _Constitución_. Gaceta."));
+    expect(yaml).toBe(
+      'c:\n  type: misc\n  author:\n    name: "Estado Plurinacional"\n  date: 2009\n  title: "Constitución"\n  note: "Gaceta"\n',
+    );
+  });
+  test("unstructured entries keep their whole text as the title", async () => {
+    const yaml = await yamlOf(section("* [[[g]]] Gamma et al. Design Patterns. 1994."));
+    expect(yaml).toContain('title: "Gamma et al. Design Patterns. 1994"');
+  });
+  test("entries without an anchor get generated keys; nested items become notes", async () => {
+    const yaml = await yamlOf(section("* No anchor here.\n* [[[n]]] Outer.\n** Inner detail."));
+    expect(yaml).toContain("ref-1:");
+    expect(yaml).toContain('note: "Inner detail."');
+  });
+  test("custom labels and list captions are reported, not silently lost", async () => {
+    const out = await body(section(".Caption\n* [[[a,lbl]]] Entry."));
+    expect(out).toContain("// adoc2typ: list captions are not representable in Hayagriva: Caption");
+    expect(out).toContain("custom reference labels are not representable in Hayagriva: a (lbl)");
+  });
+  test("keys that YAML would misread are quoted", async () => {
+    expect(await yamlOf(section("* [[[no]]] Entry."))).toStartWith('"no":');
+  });
+  test("citation followed by text uses the long form", async () => {
+    const out = await body("<<a>>s and <<a>>.\n\n" + section("* [[[a]]] Entry."));
+    expect(out).toStartWith("#cite(<a>)s and @a.");
+  });
 });

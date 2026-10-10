@@ -12,8 +12,11 @@ import { ConverterBase } from "@asciidoctor/core";
 import type { AdocNode } from "./ast.ts";
 import { decodeEntities, escapeMarkup, labelName, str } from "./escape.ts";
 
-const OPEN = "";
-const CLOSE = "";
+// Tokens are shaped like HTML tags (`<` + private-use char + index + private-use char + `>`) on
+// purpose: Asciidoctor strips tags when it derives section ids from converted titles, so ids come
+// out the same as with any other backend. Real `<` in text is always `&lt;` by then.
+const OPEN = "<\ue000";
+const CLOSE = "\ue001>";
 
 interface Atom {
   k: "atom";
@@ -26,12 +29,20 @@ interface Atom {
   callout?: number;
   /** Hard line break: must be followed by a newline. */
   hardbreak?: boolean;
+  /** Bibliography anchor (`[[[id,reftext]]]`). */
+  bib?: { id: string; reftext?: string };
+  /** Target of a link, for consumers that need structure rather than markup. */
+  href?: string;
 }
 interface Open {
   k: "open";
   code: string;
   pair: number;
-  mono: boolean;
+  /** Plain monospace: rendered as `raw` when its content is only text. */
+  mono?: boolean;
+  /** Cross reference to a bibliography entry; becomes a citation when the entry is exported. */
+  cite?: string;
+  href?: string;
 }
 interface Close {
   k: "close";
@@ -51,9 +62,18 @@ function token(e: Entry): string {
 const atom = (code: string, extra: Partial<Atom> = {}): string =>
   token({ k: "atom", code, expr: true, ...extra });
 
-function wrap(open: string, close: string, text: string, mono = false): string {
+function wrap(open: string, close: string, text: string, extra: Partial<Open> = {}): string {
   const pair = pairSeq++;
-  return token({ k: "open", code: open, pair, mono }) + text + token({ k: "close", code: close, pair });
+  return token({ k: "open", code: open, pair, ...extra }) + text + token({ k: "close", code: close, pair });
+}
+
+/**
+ * Ids of bibliography entries that are exported to a Hayagriva file. References to them become
+ * Typst citations (`@id`); other bibliography anchors stay ordinary links.
+ */
+let citable = new Set<string>();
+export function setCitable(ids: Iterable<string>): void {
+  citable = new Set(ids);
 }
 
 /** Hooks the converter needs from the caller (path re-basing, diagnostics). */
@@ -122,6 +142,48 @@ export function extractCallouts(s: string): { text: string; callouts: Array<{ li
   return { text: out, callouts };
 }
 
+/** A run of text from a converted string, with the structure bibliography parsing needs. */
+export interface Segment {
+  text: string;
+  emphasis: boolean;
+  href?: string;
+}
+
+/**
+ * Splits a converted string into text segments that remember emphasis and link targets, and
+ * pulls out a leading bibliography anchor if there is one. Used to turn bibliography entries
+ * into structured data.
+ */
+export function entrySegments(s: string): {
+  anchor?: { id: string; reftext?: string };
+  segments: Segment[];
+} {
+  const segments: Segment[] = [];
+  let anchor: { id: string; reftext?: string } | undefined;
+  const open: Array<{ pair: number; emphasis: boolean; href?: string }> = [];
+  const emphasis = () => open.some((o) => o.emphasis);
+  const href = () => open.findLast((o) => o.href !== undefined)?.href;
+  for (const p of split(s)) {
+    if (p.t === "text") {
+      const text = decodeEntities(p.v);
+      if (text !== "") segments.push({ text, emphasis: emphasis(), href: href() });
+      continue;
+    }
+    const e = p.e;
+    if (e.k === "atom") {
+      if (e.bib && !anchor) anchor = e.bib;
+      else if (e.href) segments.push({ text: e.plain ?? e.href, emphasis: emphasis(), href: e.href });
+      else if (e.plain) segments.push({ text: e.plain, emphasis: emphasis(), href: href() });
+    } else if (e.k === "open") {
+      open.push({ pair: e.pair, emphasis: e.code === "#emph[" || e.code === "#strong[", href: e.href });
+    } else {
+      const at = open.findLastIndex((o) => o.pair === e.pair);
+      if (at >= 0) open.splice(at, 1);
+    }
+  }
+  return { anchor, segments };
+}
+
 export interface RenderOptions {
   /** Escape `:` too (needed inside term-list terms). */
   colons?: boolean;
@@ -152,7 +214,22 @@ function renderParts(parts: Array<TextPart | TokPart>, opts: RenderOptions): str
         out += "\n";
       if (e.code !== "") prevExpr = e.expr;
     } else if (e.k === "open") {
-      if (e.mono) {
+      if (e.cite !== undefined && citable.has(e.cite)) {
+        // The displayed text is dropped: Hayagriva has no per-entry custom labels.
+        const close = parts.findIndex(
+          (q, j) => j > i && q.t === "tok" && q.e.k === "close" && q.e.pair === e.pair,
+        );
+        const end = close < 0 ? parts.length : close;
+        const id = labelName(e.cite);
+        // `@id` is sugar for `#cite(<id>)`; keep the long form where the key would run into
+        // following text. A trailing sentence period is fine.
+        const next = parts[end + 1];
+        const nextText = next?.t === "text" ? decodeEntities(next.v) : "";
+        const safe = !/^(?:[\p{L}\p{N}_:-]|\.[\p{L}\p{N}_])/u.test(nextText);
+        out += safe ? `@${id}` : `#cite(<${id}>)`;
+        prevExpr = !safe;
+        i = end;
+      } else if (e.mono) {
         const close = parts.findIndex(
           (q, j) => j > i && q.t === "tok" && q.e.k === "close" && q.e.pair === e.pair,
         );
@@ -185,6 +262,19 @@ const SPAN_ROLE = new Map<string, [string, string]>([
   ["overline", ["#overline[", "]"]],
 ]);
 
+const PASS_START = "\u0096";
+
+/**
+ * Macro targets can contain passthrough placeholders (`link:pass:[a b.pdf][text]`), which
+ * Asciidoctor only restores in the final string. Targets are embedded in tokens, so restore
+ * them here, using the node that owns the passthrough list.
+ */
+async function restorePassthroughs(node: AdocNode, s: string): Promise<string> {
+  if (!s.includes(PASS_START)) return s;
+  const owner = (node as unknown as { parent?: { restorePassthroughs?(t: string): Promise<string> } }).parent;
+  return owner?.restorePassthroughs ? owner.restorePassthroughs(s) : s;
+}
+
 /** Method provided by Asciidoctor's backend-traits mixin but missing from its typings. */
 interface BackendTraits {
   initBackendTraits(traits: Record<string, string | boolean>): void;
@@ -212,7 +302,7 @@ export class TypstInlineConverter extends ConverterBase {
         result = wrap("#emph[", "]", text);
         break;
       case "monospaced":
-        result = wrap("#adoc-mono[", "]", text, true);
+        result = wrap("#adoc-mono[", "]", text, { mono: true });
         break;
       case "mark":
         result = wrap("#highlight[", "]", text);
@@ -270,22 +360,25 @@ export class TypstInlineConverter extends ConverterBase {
           const resolved = ref ? await ref.xreftext(node.getAttribute("xrefstyle", null, true)) : null;
           text = resolved ?? `[${refid}]`;
         }
-        return atom(`#link(<${labelName(refid ?? "")}>)[`, { expr: false }) + text + atom("]");
+        const isBib = (ref as AdocNode | undefined)?.type === "bibref";
+        return wrap(`#link(<${labelName(refid ?? "")}>)[`, "]", text, isBib ? { cite: refid } : {});
       }
       case "ref":
         return atom(`#metadata(none)<${labelName(node.id ?? "")}>`, { plain: "" });
       case "bibref":
-        return (
-          atom(`#metadata(none)<${labelName(node.id ?? "")}>`, { plain: "" }) + `[${node.reftext || node.id}]`
+        // The visible `[label]` is part of the token so that it never reaches entry text.
+        return atom(
+          `#metadata(none)<${labelName(node.id ?? "")}>${escapeMarkup(`[${node.reftext || node.id}]`)}`,
+          { plain: "", bib: { id: node.id ?? "", reftext: node.reftext ?? undefined } },
         );
       case "link": {
-        const url = decodeEntities(String(node.target ?? ""));
+        const url = decodeEntities(await restorePassthroughs(node, String(node.target ?? "")));
         const text: string | null = node.text ?? null;
         const plain = text === null ? "" : plainText(text);
         if (text === null || text === "" || plain === url || node.hasRole?.("bare")) {
-          return atom(`#link(${str(url)})`, { plain: url });
+          return atom(`#link(${str(url)})`, { plain: url, href: url });
         }
-        return atom(`#link(${str(url)})[`, { expr: false }) + text + atom("]");
+        return wrap(`#link(${str(url)})[`, "]", text, { href: url });
       }
       default:
         hooks.warn(`unknown anchor type: ${node.type}`);
@@ -322,7 +415,7 @@ export class TypstInlineConverter extends ConverterBase {
   }
 
   async convert_inline_image(node: AdocNode): Promise<string> {
-    const target = decodeEntities(String(node.target ?? ""));
+    const target = decodeEntities(await restorePassthroughs(node, String(node.target ?? "")));
     const alt = decodeEntities(String(node.getAlt?.() ?? node.getAttribute("alt") ?? ""));
     if (node.type === "icon") return atom(`#adoc-icon(${str(target)})`, { plain: alt });
     const path = hooks.rebase(String(await node.imageUri(target)));

@@ -38,6 +38,8 @@ export interface AdocNode {
   items: AdocNode[];
   columns: AdocNode[];
   rows: AdocTableRows;
+  /** Column of a table cell. */
+  column?: AdocNode;
   colspan: number;
   rowspan: number;
   document: AdocDocument;
