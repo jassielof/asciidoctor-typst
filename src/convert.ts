@@ -1,10 +1,15 @@
-/** Public conversion API: AsciiDoc source -> Typst source, parsed by Asciidoctor. */
+/** Public conversion API: AsciiDoc source -> a Typst project, parsed by Asciidoctor. */
 import { readFile } from "node:fs/promises";
-import { dirname, relative, resolve, sep } from "node:path";
+import { dirname, resolve } from "node:path";
 import { load, MemoryLogger } from "@asciidoctor/core";
+import { AssetBundle, type OutputFile } from "./assets.ts";
 import type { AdocDocument, AdocNode } from "./ast.ts";
+import { referencedAttributes, resolveLiterals, withInfoReferences } from "./info-refs.ts";
 import { TypstEmitter } from "./emit.ts";
+import { ASCIIMATH_UNSUPPORTED, UnsupportedSyntaxError } from "./errors.ts";
 import { registerTypstConverter, setInlineHooks } from "./inline.ts";
+
+export type { OutputFile } from "./assets.ts";
 
 export interface Diagnostic {
   level: "warning" | "error";
@@ -22,18 +27,18 @@ export interface ConvertOptions {
   doctype?: "book" | "article";
   /** Import path of the Typst template library. */
   lib?: string;
-  /** Directory the Typst file will be written to; used to re-base image paths. */
-  outputDir?: string;
   /** Directory includes may be read from (Asciidoctor safe-mode jail). Defaults to the source directory. */
   baseDir?: string;
 }
 
 export interface ConvertResult {
+  /** The content of `main.typ`. */
   typst: string;
   /**
-   * Hayagriva YAML for each `[bibliography]` section, in document order. They are already
-   * embedded in `typst` as `bytes(...)`; this is for callers that want them as files.
+   * Everything the document needs, as paths inside the output directory: `main.typ`, the Hayagriva YAML of each bibliography and the images it uses (those carry `source` instead of `content`). Writing them side by side makes `typst compile main.typ` work.
    */
+  files: OutputFile[];
+  /** The Hayagriva YAML of each `[bibliography]` section, in document order. */
   bibliographies: string[];
   diagnostics: Diagnostic[];
   /** The parsed Asciidoctor document, for inspection. */
@@ -41,18 +46,29 @@ export interface ConvertResult {
 }
 
 export const DEFAULT_LIB = "/template/lib.typ";
+export const MAIN_FILE = "main.typ";
+
+/** Attributes with no meaning for Typst, and why. They are never passed to the template. */
+const IGNORED_ATTRIBUTES: Record<string, string> = {
+  "source-highlighter": "Typst highlights code itself",
+  stem: "math is always LaTeX",
+};
 
 /** Attributes that are always derived and never interesting to the template. */
 const NOISE =
   /^(?:doc|local)(?:date|time|year|datetime)$|^doc(?:file|filesuffix|name|dir|title)$|^doctype-|^(?:author|firstname|middlename|lastname|authorinitials|authors|authorcount|email|revnumber|revdate|revremark)(?:_\d+)?$|^(?:asciidoctor|safe-mode|backend-|basebackend-|filetype-)/;
 
-export async function convert(source: string, options: ConvertOptions = {}): Promise<ConvertResult> {
+export function convert(source: string, options: ConvertOptions = {}): Promise<ConvertResult> {
+  // References to authors, revision, language and document type become lookups into the template's states instead of frozen values.
+  return withInfoReferences(() => convertDocument(source, options));
+}
+
+async function convertDocument(source: string, options: ConvertOptions): Promise<ConvertResult> {
   registerTypstConverter();
   const logger = MemoryLogger.create();
   const file = options.file ? resolve(options.file) : undefined;
   const baseDir = options.baseDir ?? (file ? dirname(file) : process.cwd());
-  const sourceDir = file ? dirname(file) : undefined;
-  const outputDir = options.outputDir ? resolve(options.outputDir) : undefined;
+  const sourceDir = file ? dirname(file) : process.cwd();
 
   const diagnostics: Diagnostic[] = [];
   const warn = (message: string, node?: AdocNode) => {
@@ -61,21 +77,14 @@ export async function convert(source: string, options: ConvertOptions = {}): Pro
   };
 
   // Installed before loading: Asciidoctor converts list items, titles and table cells during parse.
-  setInlineHooks({
-    warn: (m) => warn(m),
-    rebase: (uri) => {
-      if (/^[a-z][a-z0-9+.-]*:\/\//i.test(uri) || uri.startsWith("data:")) return null;
-      const absolute = uri.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(uri);
-      if (absolute || !sourceDir || !outputDir) return uri;
-      return relative(outputDir, resolve(sourceDir, uri)).split(sep).join("/");
-    },
-  });
+  const assets = new AssetBundle(sourceDir, (m) => warn(m));
+  setInlineHooks({ warn: (m) => warn(m), bundleImage: (uri) => assets.image(uri) });
 
   const defaults: Record<string, string | boolean> = {
     // Typst produces PDF, so documents written for asciidoctor-pdf keep working.
     "backend-pdf": "",
-    // No external highlighter runs for this backend; Typst highlights `raw` itself.
-    "source-highlighter": false,
+    // Math is LaTeX (rendered with mitex). A soft default: `stem:[]` and `[stem]` mean LaTeX math unless the document says otherwise, which is then rejected. "tex" is an alias Asciidoctor knows, and is what tells "left at the default" from "set by the document".
+    stem: "tex@",
     // Report references to undefined attributes instead of silently skipping them.
     "attribute-missing": "warn",
   };
@@ -97,6 +106,17 @@ export async function convert(source: string, options: ConvertOptions = {}): Pro
 
   const doctype = options.doctype ?? (doc.getDoctype() === "book" ? "book" : "article");
 
+  // Only LaTeX math is supported: Typst has no AsciiMath, and the Typst math syntax would need non-standard AsciiDoc. `:stem:` left at its default means LaTeX (see `defaults`).
+  const stem = doc.getAttribute("stem");
+  if (typeof stem === "string" && /^(?:asciimath|ascii)?$/i.test(stem.trim())) {
+    throw new UnsupportedSyntaxError(
+      `${ASCIIMATH_UNSUPPORTED}; \`:stem:\` is ${stem === "" ? "empty (AsciiMath)" : stem}`,
+      {
+        file,
+      },
+    );
+  }
+
   // Attributes the document (or caller) set, as opposed to Asciidoctor's built-ins.
   const baseline = (await load("", { ...loadOptions, attributes: defaults })).getAttributes() as Record<
     string,
@@ -113,11 +133,21 @@ export async function convert(source: string, options: ConvertOptions = {}): Pro
     lib: options.lib ?? DEFAULT_LIB,
     doctype,
     attributes: headerAttributes,
-    sourceDir,
-    outputDir,
+    assets,
     warn,
   });
-  const typst = await emitter.emit();
+  // References that sit inside strings (URLs, alt texts, attribute values, YAML) cannot be lookups; they get the current value.
+  const typst = resolveLiterals(await emitter.emit());
+  for (const f of emitter.files) if (f.content !== undefined) f.content = resolveLiterals(f.content);
+  const bibliographies = emitter.bibliographies.map(resolveLiterals);
+
+  // Attributes that mean nothing for Typst are neither passed nor stored. One that is referenced in the document is still replaced by its value (Asciidoctor does that), so it is only reported when nothing uses it.
+  const referenced = referencedAttributes();
+  for (const [name, reason] of Object.entries(IGNORED_ATTRIBUTES)) {
+    if (name in headerAttributes && !referenced.has(name)) {
+      diagnostics.push({ level: "warning", message: `attribute :${name}: is ignored (${reason})`, file });
+    }
+  }
 
   // Asciidoctor's own diagnostics (missing includes, unterminated blocks, ...).
   for (const m of logger.messages) {
@@ -131,7 +161,9 @@ export async function convert(source: string, options: ConvertOptions = {}): Pro
       line: loc?.getLineNumber(),
     });
   }
-  return { typst, bibliographies: emitter.bibliographies, diagnostics, document: doc };
+
+  const files: OutputFile[] = [{ path: MAIN_FILE, content: typst }, ...emitter.files, ...assets.files];
+  return { typst, files, bibliographies, diagnostics, document: doc };
 }
 
 export async function convertFile(path: string, options: ConvertOptions = {}): Promise<ConvertResult> {

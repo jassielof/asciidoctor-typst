@@ -1,9 +1,7 @@
 /**
  * The slice of the Asciidoctor node API this project uses.
  *
- * `@asciidoctor/core` ships typings, but they model nodes generically (many members are
- * `any`/untyped tuples, e.g. description lists and table rows). This interface states what the
- * emitter and inline converter actually rely on, so those files stay free of `any`.
+ * `@asciidoctor/core` ships typings, but they model nodes generically (many members are `any`/untyped tuples, e.g. description lists and table rows). This interface states what the emitter and inline converter actually rely on, so those files stay free of `any`.
  */
 
 /** A description list entry: its terms and (optional) description. */
@@ -43,6 +41,7 @@ export interface AdocNode {
   colspan: number;
   rowspan: number;
   document: AdocDocument;
+  parent?: AdocNode;
   attributes: Record<string, unknown>;
 
   /** Attribute values are dynamically typed in Asciidoctor (strings, arrays, booleans). */
@@ -68,8 +67,15 @@ export interface AdocTitle {
   subtitle?: string | null;
 }
 
+/**
+ * An author, as derived by Asciidoctor from the author line or the author attributes. Names are split into at most three parts (underscores join words: `Ovando_F.` is one name).
+ */
 export interface AdocAuthor {
   getName(): string;
+  getFirstName(): string | undefined;
+  getMiddleName(): string | undefined;
+  getLastName(): string | undefined;
+  getInitials(): string | undefined;
   getEmail(): string | undefined;
 }
 

@@ -1,20 +1,15 @@
 /**
  * Inline conversion: a custom Asciidoctor converter for the `typst` backend.
  *
- * Asciidoctor runs its own inline substitutions (quotes, macros, replacements, ...) and calls
- * the converter for each inline node. Text it produces is HTML-escaped, so converter output
- * cannot simply be concatenated: Typst code must survive the later substitution passes and must
- * not be escaped as text. Converter methods therefore return *tokens* (private-use delimited
- * indexes into a table). `renderInline` splits a converted string back into text segments
- * (entity-decoded and escaped for Typst) and tokens (expanded to Typst code).
+ * Asciidoctor runs its own inline substitutions (quotes, macros, replacements, ...) and calls the converter for each inline node. Text it produces is HTML-escaped, so converter output cannot simply be concatenated: Typst code must survive the later substitution passes and must not be escaped as text. Converter methods therefore return *tokens* (private-use delimited indexes into a table). `renderInline` splits a converted string back into text segments (entity-decoded and escaped for Typst) and tokens (expanded to Typst code).
  */
 import { ConverterBase } from "@asciidoctor/core";
 import type { AdocNode } from "./ast.ts";
+import { literalFor, PLACEHOLDER, referenceCode } from "./info-refs.ts";
+import { ASCIIMATH_UNSUPPORTED, UnsupportedSyntaxError } from "./errors.ts";
 import { decodeEntities, escapeMarkup, labelName, str } from "./escape.ts";
 
-// Tokens are shaped like HTML tags (`<` + private-use char + index + private-use char + `>`) on
-// purpose: Asciidoctor strips tags when it derives section ids from converted titles, so ids come
-// out the same as with any other backend. Real `<` in text is always `&lt;` by then.
+// Tokens are shaped like HTML tags (`<` + private-use char + index + private-use char + `>`) on purpose: Asciidoctor strips tags when it derives section ids from converted titles, so ids come out the same as with any other backend. Real `<` in text is always `&lt;` by then.
 const OPEN = "<\ue000";
 const CLOSE = "\ue001>";
 
@@ -42,6 +37,8 @@ interface Open {
   mono?: boolean;
   /** Cross reference to a bibliography entry; becomes a citation when the entry is exported. */
   cite?: string;
+  /** Id a `#link(<id>)` points at; dropped when that id carries no label in the output. */
+  anchor?: string;
   href?: string;
 }
 interface Close {
@@ -68,21 +65,30 @@ function wrap(open: string, close: string, text: string, extra: Partial<Open> = 
 }
 
 /**
- * Ids of bibliography entries that are exported to a Hayagriva file. References to them become
- * Typst citations (`@id`); other bibliography anchors stay ordinary links.
+ * Ids of bibliography entries that are exported to a Hayagriva file. References to them become Typst citations (`@id`); other bibliography anchors stay ordinary links.
  */
 let citable = new Set<string>();
 export function setCitable(ids: Iterable<string>): void {
   citable = new Set(ids);
 }
 
-/** Hooks the converter needs from the caller (path re-basing, diagnostics). */
+/**
+ * Ids of sections the output draws through a template function (abstract, colophon) or through `#bibliography`, which therefore carry no label. A cross reference to one is plain text.
+ */
+let unlabelled = new Set<string>();
+export function setUnlabelled(ids: Iterable<string>): void {
+  unlabelled = new Set(ids);
+}
+
+/** Hooks the converter needs from the caller (asset bundling, diagnostics). */
 export interface InlineHooks {
-  /** Maps an image URI (already joined with `imagesdir`) to a path Typst can load; null if remote. */
-  rebase(uri: string): string | null;
+  /**
+   * Registers an image (URI already joined with `imagesdir`) and returns the path Typst should load, relative to the output directory; `null` if the image is remote.
+   */
+  bundleImage(uri: string): string | null;
   warn(message: string): void;
 }
-let hooks: InlineHooks = { rebase: (t) => t, warn: () => {} };
+let hooks: InlineHooks = { bundleImage: (t) => t, warn: () => {} };
 export function setInlineHooks(h: InlineHooks): void {
   hooks = h;
 }
@@ -92,16 +98,34 @@ const callout = (n: string) => atom("", { callout: Number(n), plain: "" });
 type TextPart = { t: "text"; v: string };
 type TokPart = { t: "tok"; e: Entry };
 
+/**
+ * Appends text, turning information-reference placeholders (see `info-refs.ts`) into atoms that read the template's states; `plain` holds the value for plain-text uses.
+ */
+function pushText(out: Array<TextPart | TokPart>, text: string): void {
+  let last = 0;
+  for (const m of text.matchAll(PLACEHOLDER)) {
+    if (m.index! > last) out.push({ t: "text", v: text.slice(last, m.index) });
+    const field = m[1]!;
+    const n = Number(m[2]) || 0;
+    out.push({
+      t: "tok",
+      e: { k: "atom", code: referenceCode(field, n), expr: true, plain: literalFor(field, n) },
+    });
+    last = m.index! + m[0].length;
+  }
+  if (last < text.length) out.push({ t: "text", v: text.slice(last) });
+}
+
 function split(s: string): Array<TextPart | TokPart> {
   const out: Array<TextPart | TokPart> = [];
   const re = new RegExp(`${OPEN}(\\d+)${CLOSE}`, "g");
   let last = 0;
   for (const m of s.matchAll(re)) {
-    if (m.index! > last) out.push({ t: "text", v: s.slice(last, m.index) });
+    if (m.index! > last) pushText(out, s.slice(last, m.index));
     out.push({ t: "tok", e: table[Number(m[1])]! });
     last = m.index! + m[0].length;
   }
-  if (last < s.length) out.push({ t: "text", v: s.slice(last) });
+  if (last < s.length) pushText(out, s.slice(last));
   return out;
 }
 
@@ -113,8 +137,7 @@ export function plainText(s: string): string {
 }
 
 /**
- * Verbatim text with callout markers removed. Returns the decoded text and, for each marker, the
- * zero-based line it was on.
+ * Verbatim text with callout markers removed. Returns the decoded text and, for each marker, the zero-based line it was on.
  */
 export function extractCallouts(s: string): { text: string; callouts: Array<{ line: number; n: number }> } {
   const callouts: Array<{ line: number; n: number }> = [];
@@ -150,9 +173,7 @@ export interface Segment {
 }
 
 /**
- * Splits a converted string into text segments that remember emphasis and link targets, and
- * pulls out a leading bibliography anchor if there is one. Used to turn bibliography entries
- * into structured data.
+ * Splits a converted string into text segments that remember emphasis and link targets, and pulls out a leading bibliography anchor if there is one. Used to turn bibliography entries into structured data.
  */
 export function entrySegments(s: string): {
   anchor?: { id: string; reftext?: string };
@@ -197,6 +218,8 @@ export function renderInline(s: string, opts: RenderOptions = {}): string {
 function renderParts(parts: Array<TextPart | TokPart>, opts: RenderOptions): string {
   let out = "";
   let prevExpr = false;
+  // Links to label-less targets: the text stays, the `#link(...)[` and `]` around it go.
+  const unlinked = new Set<number>();
   for (let i = 0; i < parts.length; i++) {
     const p = parts[i]!;
     if (p.t === "text") {
@@ -221,8 +244,7 @@ function renderParts(parts: Array<TextPart | TokPart>, opts: RenderOptions): str
         );
         const end = close < 0 ? parts.length : close;
         const id = labelName(e.cite);
-        // `@id` is sugar for `#cite(<id>)`; keep the long form where the key would run into
-        // following text. A trailing sentence period is fine.
+        // `@id` is sugar for `#cite(<id>)`; keep the long form where the key would run into following text. A trailing sentence period is fine.
         const next = parts[end + 1];
         const nextText = next?.t === "text" ? decodeEntities(next.v) : "";
         const safe = !/^(?:[\p{L}\p{N}_:-]|\.[\p{L}\p{N}_])/u.test(nextText);
@@ -242,10 +264,14 @@ function renderParts(parts: Array<TextPart | TokPart>, opts: RenderOptions): str
         }
         prevExpr = true;
         i = end;
+      } else if (e.anchor !== undefined && unlabelled.has(e.anchor)) {
+        unlinked.add(e.pair);
       } else {
         out += e.code;
         prevExpr = false;
       }
+    } else if (unlinked.has(e.pair)) {
+      unlinked.delete(e.pair);
     } else {
       out += e.code;
       prevExpr = true;
@@ -265,9 +291,7 @@ const SPAN_ROLE = new Map<string, [string, string]>([
 const PASS_START = "\u0096";
 
 /**
- * Macro targets can contain passthrough placeholders (`link:pass:[a b.pdf][text]`), which
- * Asciidoctor only restores in the final string. Targets are embedded in tokens, so restore
- * them here, using the node that owns the passthrough list.
+ * Macro targets can contain passthrough placeholders (`link:pass:[a b.pdf][text]`), which Asciidoctor only restores in the final string. Targets are embedded in tokens, so restore them here, using the node that owns the passthrough list.
  */
 async function restorePassthroughs(node: AdocNode, s: string): Promise<string> {
   if (!s.includes(PASS_START)) return s;
@@ -318,8 +342,12 @@ export class TypstInlineConverter extends ConverterBase {
       case "single":
         return `&#8216;${text}&#8217;`;
       case "asciimath":
+        throw new UnsupportedSyntaxError(ASCIIMATH_UNSUPPORTED, {
+          file: node.parent?.getFile(),
+          line: node.parent?.getLineNumber(),
+        });
       case "latexmath":
-        return atom(`#adoc-math(${str(node.type)}, ${str(plainText(text))})`, { plain: plainText(text) });
+        return atom(`#mi(${str(plainText(text))})`, { plain: plainText(text) });
       default:
         result = text;
     }
@@ -361,7 +389,12 @@ export class TypstInlineConverter extends ConverterBase {
           text = resolved ?? `[${refid}]`;
         }
         const isBib = (ref as AdocNode | undefined)?.type === "bibref";
-        return wrap(`#link(<${labelName(refid ?? "")}>)[`, "]", text, isBib ? { cite: refid } : {});
+        return wrap(
+          `#link(<${labelName(refid ?? "")}>)[`,
+          "]",
+          text,
+          isBib ? { cite: refid } : { anchor: refid },
+        );
       }
       case "ref":
         return atom(`#metadata(none)<${labelName(node.id ?? "")}>`, { plain: "" });
@@ -418,7 +451,7 @@ export class TypstInlineConverter extends ConverterBase {
     const target = decodeEntities(await restorePassthroughs(node, String(node.target ?? "")));
     const alt = decodeEntities(String(node.getAlt?.() ?? node.getAttribute("alt") ?? ""));
     if (node.type === "icon") return atom(`#adoc-icon(${str(target)})`, { plain: alt });
-    const path = hooks.rebase(String(await node.imageUri(target)));
+    const path = hooks.bundleImage(String(await node.imageUri(target)));
     if (path === null) {
       hooks.warn(`remote image is not supported by Typst, emitted as a link: ${target}`);
       return atom(`#link(${str(target)})[`, { expr: false }) + escapeAlt(alt) + atom("]");

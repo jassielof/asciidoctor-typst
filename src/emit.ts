@@ -1,15 +1,22 @@
 /**
  * Typst emitter: walks the Asciidoctor AST and writes Typst source.
  *
- * Native Typst constructs are used wherever one exists (headings, lists, term lists, tables,
- * figures, links, footnotes, quotes, raw). Constructs without a Typst equivalent call small
- * `adoc-*` functions defined by the template library, which is where styling happens.
+ * Native Typst constructs are used wherever one exists (headings, lists, term lists, tables, figures, links, footnotes, quotes, raw). Constructs without a Typst equivalent call small `adoc-*` functions defined by the template library, which is where styling happens.
  */
-import { relative, resolve, sep } from "node:path";
 import { escapeMarkup, escapeLineStarts, indent, labelName, str, decodeEntities } from "./escape.ts";
-import { contentParts, contentText, dlistEntries, type AdocDocument, type AdocNode } from "./ast.ts";
+import {
+  contentParts,
+  contentText,
+  dlistEntries,
+  type AdocAuthor,
+  type AdocDocument,
+  type AdocNode,
+} from "./ast.ts";
+import type { AssetBundle, OutputFile } from "./assets.ts";
+import { ASCIIMATH_UNSUPPORTED, UnsupportedSyntaxError } from "./errors.ts";
+import { setDocumentInfo, type AuthorField } from "./info-refs.ts";
 import { buildBibSection, toHayagriva, type BibSection } from "./bibliography.ts";
-import { dimension, extractCallouts, plainText, renderInline, setCitable } from "./inline.ts";
+import { dimension, extractCallouts, plainText, renderInline, setCitable, setUnlabelled } from "./inline.ts";
 
 export interface EmitOptions {
   /** Import path of the template library, e.g. `/template/lib.typ`. */
@@ -17,9 +24,8 @@ export interface EmitOptions {
   doctype: "book" | "article";
   /** Header attributes passed to the template. */
   attributes: Record<string, string>;
-  /** Directory of the AsciiDoc source / of the output, used to re-base image paths. */
-  sourceDir?: string;
-  outputDir?: string;
+  /** Collects the images the document refers to. */
+  assets: AssetBundle;
   warn(message: string, node?: AdocNode): void;
 }
 
@@ -30,7 +36,6 @@ const SPECIAL = new Set([
   "acknowledgments",
   "colophon",
   "glossary",
-  "bibliography",
   "appendix",
   "index",
   "foreword",
@@ -41,12 +46,58 @@ const SPECIAL = new Set([
 
 const ADMONITIONS = new Set(["note", "tip", "important", "warning", "caution"]);
 
+/**
+ * Attributes that are not repeated in the `attributes` dictionary: those with their own wrapper argument (`revision`, `logo`, `lang`), the one the wrapper itself says (`doctype`), and those that mean nothing for Typst (`source-highlighter`, `stem`).
+ */
+const STRUCTURED_ATTRIBUTES = new Set([
+  "version-label",
+  "title-logo-image",
+  "lang",
+  "doctype",
+  "source-highlighter",
+  "stem",
+]);
+
+/**
+ * `authorinitials` as defined by the AsciiDoc docs: the first character of the first, middle and last name, up to three. Asciidoctor derives them for the author line but not for an author given by attributes; the template derives them the same way (`parse-author`), so the value used where a lookup is impossible matches what the lookup would give.
+ */
+function deriveInitials(a: AdocAuthor): string | undefined {
+  const parts = [a.getFirstName(), a.getMiddleName(), a.getLastName()].filter((p): p is string => !!p);
+  const initials = parts.map((p) => [...p][0]!).join("");
+  return initials === "" ? undefined : initials.slice(0, 3);
+}
+
+/**
+ * The author's name as it is written on the author line: words separated by spaces, and `_` joining the words of one name (`Ovando_F.`). Asciidoctor has already turned those underscores into spaces, which would make `Jassiel Ovando F.` split into three names on the Typst side; the parts it derived tell where the words were joined. The template derives first, middle and last name and the initials from this form, by the same rules.
+ */
+function writtenName(a: AdocAuthor): string {
+  const parts = [a.getFirstName(), a.getMiddleName(), a.getLastName()].filter((p): p is string => !!p);
+  if (parts.length === 0) return a.getName();
+  return parts.map((p) => p.trim().replace(/\s+/g, "_")).join(" ");
+}
+/** Parses the attribute list of an inline macro: `alt, key=value, key="quoted value"`. */
+function parseMacroAttributes(src: string): { positional: string[]; named: Record<string, string> } {
+  const positional: string[] = [];
+  const named: Record<string, string> = {};
+  for (const part of src.match(/(?:[^,"]|"[^"]*")+/g) ?? []) {
+    const token = part.trim();
+    if (token === "") continue;
+    const m = /^([A-Za-z][\w-]*)\s*=\s*(.*)$/.exec(token);
+    const unquote = (v: string) => v.replace(/^"(.*)"$/, "$1");
+    if (m) named[m[1]!.toLowerCase()] = unquote(m[2]!.trim());
+    else positional.push(unquote(token));
+  }
+  return { positional, named };
+}
+
 export class TypstEmitter {
   private hasParts = false;
   /** Bibliography sections whose entries are exported as Hayagriva. */
   private bibSections = new Map<AdocNode, BibSection>();
   /** The generated Hayagriva documents, in document order. */
   readonly bibliographies: string[] = [];
+  /** Generated files other than `main.typ` (the Hayagriva YAML). */
+  readonly files: OutputFile[] = [];
 
   constructor(
     private doc: AdocDocument,
@@ -70,21 +121,11 @@ export class TypstEmitter {
     return Array.isArray(r) ? r : String(r).split(/\s+/).filter(Boolean);
   }
 
-  private imagePath(target: string): string | null {
-    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(target) || target.startsWith("data:")) return null;
-    const dir = this.doc.getAttribute("imagesdir");
-    const absolute = target.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(target);
-    let path = dir && !absolute ? `${String(dir).replace(/\/+$/, "")}/${target}` : target;
-    const { sourceDir, outputDir } = this.o;
-    if (sourceDir && outputDir && !/^(?:\/|[a-zA-Z]:[\\/])/.test(path)) {
-      path = relative(outputDir, resolve(sourceDir, path)).split(sep).join("/");
-    }
-    return path;
-  }
-
-  /** Image path as seen from the output file; null for remote images. */
-  resolveImage(target: string): string | null {
-    return this.imagePath(target);
+  /**
+   * Bundles an image and returns the path to load it from, relative to `main.typ` (`imagesdir` applied by Asciidoctor); `null` for remote images.
+   */
+  private async bundleImage(node: AdocNode, target: string): Promise<string | null> {
+    return this.o.assets.image(await node.imageUri(target));
   }
 
   // ------------------------------------------------------------ document
@@ -93,6 +134,13 @@ export class TypstEmitter {
     const doc = this.doc;
     this.hasParts = this.o.doctype === "book" && this.containsPart(doc);
     this.collectBibliographies(doc);
+    this.collectUnlabelled(doc);
+    setDocumentInfo({
+      authors: this.authorRecords(),
+      revision: this.revisionRecord(),
+      lang: this.o.attributes.lang,
+      doctype: this.o.doctype,
+    });
     const parts: string[] = [];
     parts.push("// Generated by adoc2typ. Edit the AsciiDoc source, not this file.");
     parts.push(`#import ${str(this.o.lib)}: *`);
@@ -109,28 +157,19 @@ export class TypstEmitter {
     args.push(`title: ${main ? `[${this.inline(main)}]` : "none"}`);
     if (sub) args.push(`subtitle: [${this.inline(sub)}]`);
 
-    const authors = doc.getAuthors();
-    args.push(
-      `authors: (${authors
-        .map((a) => {
-          const email = a.getEmail();
-          return `(name: ${str(a.getName())}${email ? `, email: ${str(String(email))}` : ""})`;
-        })
-        .join(", ")}${authors.length === 1 ? "," : ""})`,
-    );
-
-    const rev = {
-      number: doc.getRevisionNumber(),
-      date: doc.getRevisionDate(),
-      remark: doc.getRevisionRemark(),
-    };
-    const revFields = Object.entries(rev)
-      .filter(([, v]) => v !== undefined && v !== null && v !== "")
-      .map(([k, v]) => `${k}: ${str(String(v))}`);
-    if (revFields.length) args.push(`revision: (${revFields.join(", ")})`);
+    args.push(`authors: ${this.authorsArg()}`);
+    const revision = this.revisionArg();
+    if (revision) args.push(`revision: ${revision}`);
+    const logo = await this.logoArg();
+    if (logo) args.push(`logo: ${logo}`);
+    // The document type is the wrapper itself (adoc-book / adoc-article); the language is an argument. Both, like the revision and the logo, are available to the template as states.
+    if (this.o.attributes.lang) args.push(`lang: ${str(this.o.attributes.lang)}`);
 
     args.push(`parts: ${this.hasParts}`);
-    const attrEntries = Object.entries(this.o.attributes).map(([k, v]) => `${str(k)}: ${str(v)}`);
+    // Attributes that already have a structured argument are not repeated here.
+    const attrEntries = Object.entries(this.o.attributes)
+      .filter(([k]) => !STRUCTURED_ATTRIBUTES.has(k))
+      .map(([k, v]) => `${str(k)}: ${str(v)}`);
     args.push(`attributes: (${attrEntries.length ? attrEntries.join(", ") : ":"})`);
     const fn = this.o.doctype === "book" ? "adoc-book" : "adoc-article";
     parts.push(`#show: ${fn}.with(\n${args.map((a) => "  " + a + ",").join("\n")}\n)`);
@@ -138,6 +177,83 @@ export class TypstEmitter {
     const body = await this.blocks(this.list(doc.blocks));
     if (body) parts.push(body);
     return parts.join("\n\n") + "\n";
+  }
+
+  /**
+   * Authors as derived by Asciidoctor from the author line (one or many) or the author attributes (one). Each entry carries the same parts the `{firstname_2}`-style attributes do. They are the data behind the template's authors state: references in the text become lookups into it (see `info-refs.ts`), so editing the authors in Typst updates them all.
+   */
+  private authorRecords(): Array<Partial<Record<AuthorField, string>>> {
+    return this.doc.getAuthors().map((a) => {
+      const fields: Array<[AuthorField, string | undefined]> = [
+        ["name", a.getName()],
+        ["firstname", a.getFirstName()],
+        ["middlename", a.getMiddleName()],
+        ["lastname", a.getLastName()],
+        ["initials", a.getInitials() || deriveInitials(a)],
+        ["email", a.getEmail()],
+      ];
+      return Object.fromEntries(fields.filter((f): f is [AuthorField, string] => !!f[1]));
+    });
+  }
+
+  private authorsArg(): string {
+    const authors = this.doc.getAuthors().map((a) => {
+      const fields = [`name: ${str(writtenName(a))}`];
+      const email = a.getEmail();
+      if (email) fields.push(`email: ${str(email)}`);
+      return `(${fields.join(", ")}),`;
+    });
+    return authors.length === 0 ? "()" : `(\n${authors.map((a) => `    ${a}`).join("\n")}\n  )`;
+  }
+
+  /**
+   * Revision information: `revnumber`, `revdate`, `revremark`, plus the `version-label` that prefixes the number. Absent when the document has none of the three.
+   */
+  private revisionRecord(): { number?: string; date?: string; remark?: string; label?: string } {
+    const doc = this.doc;
+    const fields: Array<[string, string | undefined]> = [
+      ["number", doc.getRevisionNumber()],
+      ["date", doc.getRevisionDate()],
+      ["remark", doc.getRevisionRemark()],
+    ];
+    const present = fields.filter((f): f is [string, string] => f[1] !== undefined && f[1] !== "");
+    if (present.length === 0) return {};
+    const label = doc.getAttribute("version-label");
+    if (typeof label === "string" && label !== "") present.push(["label", label]);
+    return Object.fromEntries(present);
+  }
+
+  private revisionArg(): string | null {
+    const present = Object.entries(this.revisionRecord());
+    if (present.length === 0) return null;
+    return `(\n${present.map(([k, v]) => `    ${k}: ${str(v)},`).join("\n")}\n  )`;
+  }
+
+  /**
+   * The title page image (an `image(...)` call plus its alignment), from `:title-logo-image:` (`image:path[pdfwidth=25%]` or a bare path, as Asciidoctor PDF accepts). The image is bundled into the output directory.
+   */
+  private async logoArg(): Promise<string | null> {
+    const raw = this.doc.getAttribute("title-logo-image");
+    if (typeof raw !== "string" || raw.trim() === "") return null;
+    const macro = /^image:+([^[]*)\[(.*)\]$/.exec(raw.trim());
+    const target = (macro ? macro[1]! : raw).trim();
+    const attrs = parseMacroAttributes(macro ? macro[2]! : "");
+
+    const path = await this.bundleImage(this.doc, target);
+    if (path === null) {
+      this.o.warn(`title logo must be a local file, remote images are not supported: ${target}`);
+      return null;
+    }
+    // The image is built here, in the document: Typst resolves a path relative to the file that calls `image`, so a bare path handed to the template would be looked up next to it.
+    const imageArgs = [str(path)];
+    const alt = attrs.named.alt ?? attrs.positional[0];
+    if (alt) imageArgs.push(`alt: ${str(alt)}`);
+    const width = dimension(attrs.named.pdfwidth ?? attrs.named.width ?? attrs.named.scaledwidth);
+    if (width) imageArgs.push(`width: ${width}`);
+    const fields = [`image: image(${imageArgs.join(", ")})`];
+    const align = attrs.named.align;
+    if (align === "left" || align === "center" || align === "right") fields.push(`align: ${align}`);
+    return `(${fields.join(", ")})`;
   }
 
   private containsPart(node: AdocNode): boolean {
@@ -148,8 +264,7 @@ export class TypstEmitter {
   }
 
   /**
-   * Finds `[bibliography]` sections and builds their entries up front, so that citations
-   * elsewhere in the document know which keys will exist.
+   * Finds `[bibliography]` sections and builds their entries up front, so that citations elsewhere in the document know which keys will exist.
    */
   private collectBibliographies(node: AdocNode): void {
     const citable: string[] = [];
@@ -171,31 +286,45 @@ export class TypstEmitter {
   }
 
   /**
-   * The `#bibliography(...)` call replacing a bibliography section's heading and entry lists.
-   * Typst generates the (translated) title itself, at heading level 1 plus `offset`; the
-   * section's label moves onto the call so cross references to the section keep working.
+   * Sections drawn by a template function or by `#bibliography` get no label (the function owns the heading); cross references to them must not become dangling links.
    */
-  private bibliographyCall(sec: BibSection, level: number, label: string): string {
+  private collectUnlabelled(node: AdocNode): void {
+    const ids: string[] = [];
+    const visit = (n: AdocNode) => {
+      for (const b of this.list<AdocNode>(n.blocks)) {
+        if (b.context !== "section") continue;
+        const name = b.sectname;
+        const abstract = name === "abstract" || b.attributes?.style === "abstract";
+        if (b.id && (abstract || name === "colophon" || this.bibSections.has(b))) ids.push(b.id);
+        visit(b);
+      }
+    };
+    visit(node);
+    setUnlabelled(ids);
+  }
+
+  /**
+   * The `#bibliography(...)` call replacing a bibliography section's heading and entry lists. Typst generates the (translated) title itself, at heading level 1 plus `offset`. The call is emitted bare: no wrapper function and no label.
+   */
+  private bibliographyCall(sec: BibSection, level: number, title: string): string {
     const yaml = toHayagriva(sec.entries);
     this.bibliographies.push(yaml);
-    const comments = sec.dropped.map((d) => `// adoc2typ: ${d.replace(/\s+/g, " ")}`);
-    // The YAML is embedded as bytes: no extra file to resolve, and the output stays one file.
-    const data = yaml
-      .trimEnd()
-      .split("\n")
-      .map((l) => `    ${str(l + "\n")}`)
-      .join(" +\n");
-    const call = ["#bibliography(", "  full: true,", "  bytes(", data, "  ),", `)${label}`].join("\n");
+    // One file per bibliography, next to main.typ: bibliography.yaml, bibliography-2.yaml, ...
+    const n = this.bibliographies.length;
+    const path = n === 1 ? "bibliography.yaml" : `bibliography-${n}.yaml`;
+    this.files.push({ path, content: yaml });
+
+    const note = `// adoc2typ: the section title "${title}" is replaced by Typst's generated one`;
+    const call = ["#bibliography(", "  full: true,", `  ${str(path)},`, ")"].join("\n");
     // The generated title is a level-1 heading; shift it to the section's level.
     const body = level > 1 ? `#[\n#set heading(offset: ${level - 1})\n${call}\n]` : call;
-    return [...comments, body].join("\n");
+    return [note, body].join("\n");
   }
 
   // ------------------------------------------------------------ blocks
 
   /**
-   * `replace` may substitute the output for a block (`""` drops it); used to swap a
-   * bibliography's lists for the generated `#bibliography` call.
+   * `replace` may substitute the output for a block (`""` drops it); used to swap a bibliography's lists for the generated `#bibliography` call.
    */
   private async blocks(blocks: AdocNode[], replace?: (b: AdocNode) => string | undefined): Promise<string> {
     const out: string[] = [];
@@ -203,8 +332,7 @@ export class TypstEmitter {
     for (const b of blocks) {
       const s = replace?.(b) ?? (await this.block(b));
       if (s === "") continue;
-      // Adjacent lists of the same kind merge in Typst (blank lines and `#[]` do not split
-      // them); an inert weak space does.
+      // Adjacent lists of the same kind merge in Typst (blank lines and `#[]` do not split them); an inert weak space does.
       const isList = b.context === "ulist" || b.context === "olist" || b.context === "dlist";
       if (isList && prev === b.context && !b.title && out.length > 0) out.push("#v(0pt, weak: true)");
       out.push(s);
@@ -279,8 +407,11 @@ export class TypstEmitter {
       case "open": {
         const body = await this.content(b);
         const style: string | undefined = b.style ?? undefined;
-        if (style === "abstract" || style === "partintro") {
-          return this.withTitle(b, `#adoc-${style}[\n${body}\n]`);
+        if (style === "abstract") {
+          return this.sectionCall("abstract", { style: "block", title: this.title(b) }, body);
+        }
+        if (style === "partintro") {
+          return this.withTitle(b, `#adoc-partintro[\n${body}\n]`);
         }
         return this.withTitle(b, body);
       }
@@ -311,8 +442,13 @@ export class TypstEmitter {
         return text;
       }
       case "stem": {
-        const kind = /latex/i.test(String(b.style)) ? "latexmath" : "asciimath";
-        return `#adoc-math(${str(kind)}, ${str(plainText(String(await contentText(b))))}, block: true)`;
+        if (!/latex/i.test(String(b.style))) {
+          throw new UnsupportedSyntaxError(ASCIIMATH_UNSUPPORTED, {
+            file: b.getFile(),
+            line: b.getLineNumber(),
+          });
+        }
+        return `#mitex(${str(plainText(String(await contentText(b))))})`;
       }
       case "ulist":
       case "olist":
@@ -369,7 +505,10 @@ export class TypstEmitter {
     const label = s.id ? ` <${labelName(s.id)}>` : "";
     // A bibliography's heading is generated by Typst's `#bibliography`, not written here.
     const bib = this.bibSections.get(s);
-    const heading = bib ? "" : `${"=".repeat(level)} ${title}${label}`;
+    const name: string = s.sectname;
+    // The colophon function draws its own heading, like the abstract.
+    const isColophon = name === "colophon";
+    const heading = bib || isColophon ? "" : `${"=".repeat(level)} ${title}${label}`;
     let placed = false;
     const body = await this.blocks(
       this.list(s.blocks),
@@ -378,18 +517,23 @@ export class TypstEmitter {
             if (!bib.lists.has(b)) return undefined;
             if (placed) return "";
             placed = true;
-            bib.dropped.push(
-              `the section title "${plainText(s.title ?? "")}" is replaced by Typst's generated one`,
-            );
-            return this.bibliographyCall(bib, level, label);
+            return this.bibliographyCall(bib, level, plainText(s.title ?? ""));
           }
         : undefined,
     );
     const inner = heading && body ? `${heading}\n\n${body}` : heading || body;
-    const name: string = s.sectname;
     let out = inner;
-    if (name && SPECIAL.has(name)) out = `#adoc-${name}[\n${inner}\n]`;
-    else if (s.special && name && name !== "section" && name !== "chapter" && name !== "part") {
+    // `[abstract]` sections are not wrapped around their heading: the template's `abstract` draws the title itself (https://docs.asciidoctor.org/asciidoc/latest/sections/abstract/). In a book Asciidoctor turns an abstract section into a chapter (sectname `chapter`) but keeps the style the author wrote.
+    if (name === "abstract" || s.attributes?.style === "abstract") {
+      out = this.sectionCall("abstract", { title: s.title ? this.inline(s.title) : undefined }, body);
+    } else if (isColophon) {
+      out = this.sectionCall("colophon", { title: this.inline(s.title), level }, body);
+    } else if (bib || name === "bibliography") {
+      // Bare: the `#bibliography` call (or just the heading) is the whole section.
+      out = inner;
+    } else if (name && SPECIAL.has(name)) {
+      out = `#adoc-${name}[\n${inner}\n]`;
+    } else if (s.special && name && name !== "section" && name !== "chapter" && name !== "part") {
       out = `#adoc-special(${str(name)})[\n${inner}\n]`;
     }
     const roles = this.roles(s);
@@ -400,6 +544,24 @@ export class TypstEmitter {
     return out;
   }
 
+  /**
+   * A call to one of the template's section functions, `fn(body, title:, style:, level:)` (`abstract`, `colophon`). They draw their own heading, so the heading is not part of `body`.
+   *
+   * - an abstract *section* (`[abstract]` on a heading) is `style: "section"`, the default; an abstract *block* is `style: "block"`.
+   * - `level` is the heading level, only passed when it is not 1.
+   */
+  private sectionCall(
+    fn: "abstract" | "colophon",
+    opts: { style?: "block"; title?: string; level?: number },
+    body: string,
+  ): string {
+    const args: string[] = [];
+    if (opts.style) args.push(`style: ${str(opts.style)}`);
+    if (opts.title !== undefined) args.push(`title: [${opts.title}]`);
+    if (opts.level !== undefined && opts.level > 1) args.push(`level: ${opts.level}`);
+    const head = `#${fn}(${args.join(", ")})`;
+    return body.includes("\n") ? `${head}[\n${body}\n]` : `${head}[${body}]`;
+  }
   // ------------------------------------------------------------ verbatim
 
   private async listing(b: AdocNode): Promise<string> {
@@ -503,7 +665,7 @@ export class TypstEmitter {
   private async imageBlock(b: AdocNode): Promise<string> {
     const target = String(b.getAttribute("target"));
     const alt = decodeEntities(String(b.getAttribute("alt") ?? ""));
-    const path = this.imagePath(target);
+    const path = await this.bundleImage(b, target);
     if (path === null) {
       this.o.warn(`remote image is not supported by Typst, emitted as a link: ${target}`, b);
       return `#link(${str(target)})[${escapeMarkup(alt)}]`;

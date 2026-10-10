@@ -1,20 +1,18 @@
 /**
  * AsciiDoc bibliography -> Hayagriva (the bibliography format Typst reads).
  *
- * AsciiDoc leaves the structure of an entry free-form (only the `[[[id,reftext]]]` anchor is
- * defined), so fields are inferred on a best-effort basis from the common shapes:
+ * AsciiDoc leaves the structure of an entry free-form (only the `[[[id,reftext]]]` anchor is defined), so fields are inferred on a best-effort basis from the common shapes:
  *
  *   Author. (2009). _Title_. Rest.      -> author, date, title, note
  *   Title text — https://example.org    -> title, url
  *   https://example.org/                -> url
  *   anything else                       -> the whole text becomes the title
  *
- * Nothing is invented: whatever cannot be placed in a field is kept in `note`/`title`, and what
- * Hayagriva cannot represent (list captions, custom reference labels) is reported to the caller.
+ * Nothing is invented: whatever cannot be placed in a field is kept in `note`/`title`, and what Hayagriva cannot represent (list captions, custom reference labels) is reported to the caller.
  */
 import type { AdocNode } from "./ast.ts";
 import { labelName } from "./escape.ts";
-import { entrySegments, type Segment } from "./inline.ts";
+import { entrySegments, plainText, type Segment } from "./inline.ts";
 
 export interface BibEntry {
   /** Citation key (`@key` in Typst). */
@@ -24,14 +22,18 @@ export interface BibEntry {
   title?: string;
   note?: string;
   url?: string;
+  /**
+   * Caption of the list the entry was written in. Hayagriva has no grouping, so it is kept as a YAML comment above the group.
+   */
+  group?: string;
+  /** Custom reference label (`[[[id,label]]]`), kept as a YAML comment on the entry. */
+  label?: string;
 }
 
 export interface BibSection {
   entries: BibEntry[];
   /** The list blocks of the section that were converted (and so must not be emitted again). */
   lists: Set<AdocNode>;
-  /** Human-readable account of information Hayagriva cannot hold. */
-  dropped: string[];
 }
 
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -95,7 +97,6 @@ export function buildBibSection(section: AdocNode): BibSection | null {
   if (lists.length === 0) return null;
 
   const entries: BibEntry[] = [];
-  const dropped: string[] = [];
   const used = new Set<string>();
   const unique = (key: string) => {
     let k = key;
@@ -104,28 +105,20 @@ export function buildBibSection(section: AdocNode): BibSection | null {
     return k;
   };
 
-  const captions = lists.map((l) => (l.hasTitle() ? l.title : null)).filter((t): t is string => !!t);
-  if (captions.length) {
-    dropped.push(`list captions are not representable in Hayagriva: ${captions.map(clean).join("; ")}`);
-  }
-  const relabeled: string[] = [];
-
   for (const list of lists) {
+    const group = list.hasTitle() ? clean(plainText(list.title ?? "")) || undefined : undefined;
     for (const item of list.items) {
       const { anchor, segments } = entrySegments(item.text ?? "");
       const fields = parseEntry(segments);
       const notes = nestedNotes(item);
       if (notes.length) fields.note = [fields.note, ...notes].filter(Boolean).join("; ");
       const key = unique(anchor ? labelName(anchor.id) : `ref-${entries.length + 1}`);
-      if (anchor?.reftext && anchor.reftext !== anchor.id) relabeled.push(`${anchor.id} (${anchor.reftext})`);
       if (!fields.title && !fields.url && !fields.author) fields.title = join(segments) || key;
-      entries.push({ key, ...fields });
+      const label = anchor?.reftext && anchor.reftext !== anchor.id ? clean(anchor.reftext) : undefined;
+      entries.push({ key, ...fields, group, label });
     }
   }
-  if (relabeled.length) {
-    dropped.push(`custom reference labels are not representable in Hayagriva: ${relabeled.join(", ")}`);
-  }
-  return { entries, lists: new Set(lists), dropped };
+  return { entries, lists: new Set(lists) };
 }
 
 const q = (s: string) => JSON.stringify(s);
@@ -133,11 +126,17 @@ const q = (s: string) => JSON.stringify(s);
 const key = (s: string) =>
   /^[A-Za-z_][A-Za-z0-9_.:-]*$/.test(s) && !/^(?:y|n|yes|no|true|false|on|off|null|~)$/i.test(s) ? s : q(s);
 
-/** Serialises entries as a Hayagriva YAML document. */
+/**
+ * Serialises entries as a Hayagriva YAML document. Information Hayagriva cannot represent is kept as comments: list captions above their group, custom labels beside the key.
+ */
 export function toHayagriva(entries: BibEntry[]): string {
   const lines: string[] = [];
+  let group: string | undefined;
   for (const e of entries) {
-    lines.push(`${key(e.key)}:`);
+    if (e.group !== group && lines.length > 0) lines.push("");
+    if (e.group !== undefined && e.group !== group) lines.push(`# ${e.group}`);
+    group = e.group;
+    lines.push(`${key(e.key)}:${e.label ? ` # AsciiDoc label: ${e.label}` : ""}`);
     lines.push("  type: misc");
     if (e.author) lines.push("  author:", `    name: ${q(e.author)}`);
     if (e.date) lines.push(`  date: ${/^\d{4}$/.test(e.date) ? e.date : q(e.date)}`);

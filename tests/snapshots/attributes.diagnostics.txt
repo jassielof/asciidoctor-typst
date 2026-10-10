@@ -1,2 +1,0 @@
-warning: skipping reference to missing attribute: nope (attributes.adoc)
-warning: skipping reference to missing attribute: from-caller (attributes.adoc)

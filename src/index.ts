@@ -1,16 +1,17 @@
 #!/usr/bin/env bun
 /** adoc2typ command line interface. */
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { writeFiles } from "./assets.ts";
 import { convertFile, DEFAULT_LIB } from "./convert.ts";
 
 export { convert, convertFile } from "./convert.ts";
-export type { ConvertOptions, ConvertResult } from "./convert.ts";
+export type { ConvertOptions, ConvertResult, OutputFile } from "./convert.ts";
+export { writeFiles } from "./assets.ts";
 
 const USAGE = `Usage: adoc2typ <input.adoc> [options]
 
 Options:
-  -o, --output <file>     Write Typst to <file> (default: stdout)
+  -o, --output <dir>      Write the Typst project (main.typ, bibliography YAML, images) to <dir>.
+                          Without it, main.typ goes to stdout (an error if other files are needed)
   -a, --attribute <name[=value]|name!>
                           Set or unset a document attribute (repeatable)
   -d, --doctype <type>    Force doctype: book | article
@@ -76,19 +77,16 @@ async function main(argv: string[]): Promise<number> {
     return 2;
   }
 
-  const result = await convertFile(input, {
-    attributes,
-    doctype,
-    lib,
-    outputDir: output ? dirname(output) : undefined,
-  });
+  const result = await convertFile(input, { attributes, doctype, lib });
   for (const d of result.diagnostics) {
     const where = d.file ? `${d.file}${d.line ? `:${d.line}` : ""}: ` : "";
     console.error(`${where}${d.level}: ${d.message}`);
   }
   if (output) {
-    mkdirSync(dirname(output), { recursive: true });
-    writeFileSync(output, result.typst);
+    writeFiles(output, result.files);
+  } else if (result.files.length > 1) {
+    const extra = result.files.filter((f) => f.path !== "main.typ").map((f) => f.path);
+    throw new Error(`the document needs more than main.typ (${extra.join(", ")}); pass -o <dir>`);
   } else {
     process.stdout.write(result.typst);
   }

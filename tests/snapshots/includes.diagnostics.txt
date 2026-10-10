@@ -1,1 +1,0 @@
-error: include file not found: tests/fixtures/includes/partials/missing.adoc (main.adoc:10)

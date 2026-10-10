@@ -1,0 +1,111 @@
+# Marco normativo nacional
+cpe: # AsciiDoc label: 1
+  type: misc
+  author:
+    name: "Estado Plurinacional de Bolivia"
+  date: 2009
+  title: "Constitución Política del Estado"
+ley070: # AsciiDoc label: 2
+  type: misc
+  author:
+    name: "Asamblea Legislativa Plurinacional"
+  date: 2010
+  title: "Ley de la Educación N.º 070 «Avelino Siñani - Elizardo Pérez»"
+ds1433: # AsciiDoc label: 3
+  type: misc
+  author:
+    name: "Ministerio de Educación del Estado Plurinacional de Bolivia"
+  date: 2012
+  title: "Decreto Supremo N.º 1433: Reglamento General de Universidades Privadas"
+
+# Estatuto orgánico institucional
+upsa-statute: # AsciiDoc label: 4
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Estatuto Orgánico de la UPSA"
+
+# Reglamentos internos obligatorios (D.S. 1433, Arts. 8–17)
+upsa-inst-reg: # AsciiDoc label: 5
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento Institucional"
+upsa-faculty-reg: # AsciiDoc label: 6
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento de Docencia"
+  url: "https://acm.upsa.edu.bo/images/upsa-reglamento-de-docencia.pdf"
+upsa-student-reg: # AsciiDoc label: 7
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento del Estudiante"
+  url: "https://sobrevirtual.upsa.edu.bo/docs/Reglamento_del_Estudiante.pdf"
+upsa-admin-reg: # AsciiDoc label: 8
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento de Personal Administrativo"
+upsa-research-reg: # AsciiDoc label: 9
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento de Investigación"
+upsa-outreach-reg: # AsciiDoc label: 10
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento de Interacción Social y Difusión Cultural"
+upsa-eval-reg: # AsciiDoc label: 11
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento de Autoevaluación"
+upsa-scholarship-reg: # AsciiDoc label: 12
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento de Becas"
+  url: "https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Becas.pdf"
+upsa-graduation-reg: # AsciiDoc label: 13
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento de Graduación"
+  url: "https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Graduacion.pdf"
+
+# Reglamentos y normativas específicas complementarias
+upsa-internship-reg: # AsciiDoc label: 14
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento de Pasantía Profesional y Social"
+  url: "https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Pasantia_Profesional_y_Social.pdf"
+upsa-library-reg: # AsciiDoc label: 15
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento Interno de Uso de Biblioteca"
+  url: "https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Interno_Uso_Biblioteca.pdf"
+upsa-admissions-reg: # AsciiDoc label: 16
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento de Admisiones y Traspasos"
+upsa-honors-reg: # AsciiDoc label: 17
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento de Distinciones y Honores"
+upsa-grad-studies-reg: # AsciiDoc label: 18
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Reglamento de Postgrado"
+upsa-ethics-code: # AsciiDoc label: 19
+  type: misc
+  author:
+    name: "Universidad Privada de Santa Cruz de la Sierra"
+  title: "Código de Ética y Tribunal de Honor"
