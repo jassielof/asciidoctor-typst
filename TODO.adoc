@@ -55,3 +55,43 @@ Usage in citations @dcm-dev and @doctests.
 ----
 
 The data loss is the custom labels on the entries and the citations as well as caption grouping as there's no equivalent in Hayagriva/Typst. Citation supplements could be used but it's not sematically equivalent to the custom label.
+
+- [ ] Math syntax should be by default LaTeX as Typst can't understand AsciiMath and it has LaTeX plug-ins to support it. The math blocks and inline math should be wrapped around the https://typst.app/universe/package/mitex package, for example:
+
+[source,typst]
+----
+#import "@preview/mitex:0.2.7": *
+
+#assert.eq(mitex-convert("\alpha x"), "alpha  x ")
+
+Write inline equations like #mi("x") or #mi[y].
+
+Also block equations (this case is from #text(blue.lighten(20%), link("https://katex.org/")[katex.org])):
+
+#mitex(`
+  \newcommand{\f}[2]{#1f(#2)}
+  \f\relax{x} = \int_{-\infty}^\infty
+    \f\hat\xi\,e^{2 \pi i \xi x}
+    \,d\xi
+`)
+
+We also support text mode (in development):
+
+#mitext(`
+  \iftypst
+    #set math.equation(numbering: "(1)", supplement: "equation")
+  \fi
+
+  \section{Title}
+
+  A \textbf{strong} text, a \emph{emph} text and inline equation $x + y$.
+
+  Also block \eqref{eq:pythagoras}.
+
+  \begin{equation}
+    a^2 + b^2 = c^2 \label{eq:pythagoras}
+  \end{equation}
+`)
+----
+
+
