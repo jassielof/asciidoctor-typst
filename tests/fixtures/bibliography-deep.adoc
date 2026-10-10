@@ -1,0 +1,14 @@
+= Nested bibliography
+:lang: es
+
+Cited as <<no>>s and, at the end of a sentence, <<no>>. Section: <<_referencias>>.
+
+== Chapter
+
+=== Section
+
+[bibliography]
+==== Referencias
+
+* [[[no]]] Keys YAML would read as booleans are quoted.
+* [[[plain]]] Gamma et al. Design Patterns. 1994.

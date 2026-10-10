@@ -5,7 +5,7 @@
 #show: adoc-article.with(
   title: [An Article],
   subtitle: [With a Subtitle],
-  authors: ((name: "Jane Doe", email: "jane@example.org"),),
+  authors: ((name: "Jane Doe", email: "jane@example.org"), (name: "Bob Roe")),
   revision: (number: "2.1", date: "2026-03-04", remark: "Second draft"),
   parts: false,
   attributes: ("sectnums": "", "lang": "en", "custom-attribute": "custom value", "toc": ""),
@@ -34,3 +34,11 @@ Text.
 = Section with #raw("monospace") and #emph[emphasis] in the title <_section_with_monospace_and_emphasis_in_the_title>
 
 Text.
+
+= Repeated title <_repeated_title>
+
+Automatic ids are de-duplicated.
+
+= Repeated title <_repeated_title_2>
+
+The second one gets a numeric suffix.

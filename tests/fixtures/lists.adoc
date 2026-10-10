@@ -62,3 +62,9 @@ Child::: Nested definition.
 
 First term::
 Second term:: Shared definition.
+
+//-
+
+* a parent item
+
+. nested: a list of a different kind right after a blank line

@@ -19,6 +19,10 @@ Text.
 
 Only this line is included.
 
+second line
+
+Unresolved directive in main.adoc - include::partials/missing.adoc\[\]
+
 = Back to the main file <_back_to_the_main_file>
 
 Text.

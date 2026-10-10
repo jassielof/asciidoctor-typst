@@ -32,6 +32,14 @@ Inline math #adoc-math("asciimath", "x^2") and #adoc-math("latexmath", "\\sqrt{2
 
 An index term #adoc-indexterm(("visible",), visible: true) and #adoc-indexterm(("hidden", "term")).
 
+Constrained marks leave snake\_case\_name and 2\*3\*4 alone.
+
+After a code expression: #strong[b]\.foo and #strong[c]\(x).
+
+Passthroughs: \*not bold\* and a\_b\_c.
+
+Autolinks end before a sentence period: #link("https://example.org/end"). Mail #link("mailto:user@example.org")[user\@example.org] and #link("page.html")[a relative link].
+
 Line starts that look like markup:
 \= not a heading
 \- not a list

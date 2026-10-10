@@ -5,6 +5,10 @@ include::partials/chapter.adoc[leveloffset=+1]
 
 include::partials/tagged.adoc[tag=snippet]
 
+include::partials/lines.adoc[lines=2]
+
+include::partials/missing.adoc[]
+
 == Back to the main file
 
 Text.

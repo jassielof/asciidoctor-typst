@@ -1,0 +1,43 @@
+= Attributes and conditionals
+:name: World
+:a:
+:n: 3
+:flag-value: *not bold*
+
+Hello {name}, a missing {nope} and an escaped \{name}.
+
+Counters: {counter:item} {counter:item} {counter:item}.
+
+A value with markup stays literal text: {flag-value}.
+
+Caller attribute: {from-caller}.
+
+ifdef::a[]
+A is set.
+endif::[]
+
+ifndef::a[]
+A is unset.
+endif::[]
+
+ifdef::a,missing[]
+Any of them is set.
+endif::[]
+
+ifdef::a+missing[]
+All of them are set.
+endif::[]
+
+ifeval::[{n} > 2]
+Big n.
+endif::[]
+
+ifdef::a[Single-line form.]
+
+ifdef::backend-pdf[]
+The pdf backend attribute is defined.
+endif::[]
+
+ifdef::backend-typst[]
+The typst backend attribute is defined.
+endif::[]

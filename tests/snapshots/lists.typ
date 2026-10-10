@@ -63,3 +63,6 @@
 - captioned item
 
 / First term#linebreak()Second term: Shared definition.
+
+- a parent item
+  + nested: a list of a different kind right after a blank line

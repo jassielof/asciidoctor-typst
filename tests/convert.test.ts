@@ -1,324 +1,429 @@
-import { afterAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { convert } from "../src/convert.ts";
-import { decodeEntities, escapeLineStarts, escapeMarkup } from "../src/escape.ts";
+/**
+ * Behavioural tests. Every test converts a fixture from tests/fixtures (the same ones the
+ * snapshots are built from) and asserts on a specific aspect of the result, so a failure points
+ * at the behaviour rather than at a whole-file diff.
+ */
+import { describe, expect, test } from "bun:test";
+import { bodyOf, convertFixture } from "./fixtures.ts";
 
-type Opts = Parameters<typeof convert>[1];
-
-/** Converts a snippet and returns only the body (everything after the `#show:` header). */
-async function body(adoc: string, opts: Opts = {}): Promise<string> {
-  const out = (await convert(adoc, opts)).typst;
-  const i = out.indexOf("\n)\n");
-  return out.slice(i + 3).trim();
+async function typst(name: string, options?: Parameters<typeof convertFixture>[1]): Promise<string> {
+  return (await convertFixture(name, options)).typst;
 }
 
-async function warnings(adoc: string, opts: Opts = {}): Promise<string[]> {
-  return (await convert(adoc, opts)).diagnostics.map((d) => d.message);
+async function messages(name: string): Promise<string[]> {
+  return (await convertFixture(name)).diagnostics.map((d) => d.message);
 }
 
-describe("escaping", () => {
-  test("markup characters", () => {
-    expect(escapeMarkup("a*b_c#d$e@f<g>[h]`~\\")).toBe("a\\*b\\_c\\#d\\$e\\@f\\<g>\\[h\\]\\`\\~\\\\");
+describe("document header (article)", () => {
+  test("title, subtitle, authors and revision", async () => {
+    const out = await typst("article");
+    expect(out).toContain("title: [An Article]");
+    expect(out).toContain("subtitle: [With a Subtitle]");
+    expect(out).toContain('authors: ((name: "Jane Doe", email: "jane@example.org"), (name: "Bob Roe"))');
+    expect(out).toContain('revision: (number: "2.1", date: "2026-03-04", remark: "Second draft")');
   });
-  test("hyphen runs and comment starts", () => {
-    expect(escapeMarkup("a--b")).toBe("a\\-\\-b");
-    expect(escapeMarkup("a//b")).toBe("a\\//b");
-    expect(escapeMarkup("x...")).toBe("x\\...");
+  test("document attributes are passed on, Asciidoctor's built-ins are not", async () => {
+    const out = await typst("article");
+    expect(out).toContain('"custom-attribute": "custom value"');
+    expect(out).toContain('"sectnums": ""');
+    expect(out).not.toContain("docdate");
+    expect(out).not.toContain("asciidoctor-version");
+    expect(out).not.toContain('"author"');
   });
-  test("line starts that would become structure", () => {
-    expect(escapeLineStarts("= not heading\n- not list\n1. not enum\n+ plus\n/ term")).toBe(
-      "\\= not heading\n\\- not list\n1\\. not enum\n\\+ plus\n\\/ term",
-    );
-  });
-  test("entities", () => {
-    expect(decodeEntities("&amp; &#8364; &copy; &#x2014; &unknown;")).toBe("& € © — &unknown;");
-  });
-});
-
-describe("document header", () => {
-  test("title, subtitle, authors, revision and attributes", async () => {
-    const out = await convert(
-      "= Main: Sub\nJane Doe <jane@x.org>; Bob\nv1.0, 2026-01-01: First\n:doctype: book\n:custom: value\n\nBody.",
-    );
-    expect(out.typst).toContain("title: [Main]");
-    expect(out.typst).toContain("subtitle: [Sub]");
-    expect(out.typst).toContain('(name: "Jane Doe", email: "jane@x.org"), (name: "Bob")');
-    expect(out.typst).toContain('revision: (number: "1.0", date: "2026-01-01", remark: "First")');
-    expect(out.typst).toContain("#show: adoc-book.with(");
-    expect(out.typst).toContain('"custom": "value"');
-  });
-  test("doctype can be forced", async () => {
-    expect((await convert("= T\n\nx", { doctype: "book" })).typst).toContain("adoc-book.with");
-    expect((await convert("= T\n:doctype: book\n\nx")).typst).toContain("adoc-book.with");
-    expect((await convert("= T\n\nx")).typst).toContain("adoc-article.with");
-  });
-  test("built-in attributes are not leaked to the template", async () => {
-    const { typst } = await convert("= T\n:mine: 1\n\nx");
-    expect(typst).toContain('"mine": "1"');
-    expect(typst).not.toContain("docdate");
-    expect(typst).not.toContain("asciidoctor");
+  test("doctype comes from the document and can be forced", async () => {
+    expect(await typst("article")).toContain("#show: adoc-article.with(");
+    expect(await typst("book-chapters")).toContain("#show: adoc-book.with(");
+    expect(await typst("article", { doctype: "book" })).toContain("#show: adoc-book.with(");
   });
 });
 
 describe("attributes and conditionals", () => {
-  test("references are substituted, missing ones are kept and reported", async () => {
-    const src = ":name: World\n\nHello {name} and {nope}.";
-    expect(await body(src)).toBe("Hello World and {nope}.");
-    expect((await warnings(src)).join()).toContain("nope");
+  test("references are substituted; missing ones are kept and reported", async () => {
+    const out = await typst("attributes");
+    expect(out).toContain("Hello World, a missing {nope} and an escaped {name}.");
+    expect((await messages("attributes")).join("\n")).toContain("missing attribute: nope");
   });
-  test("ifdef / ifndef / ifeval", async () => {
-    const src = [
-      ":a:",
-      "ifdef::a[]\nA is set\nendif::[]",
-      "ifndef::a[]\nA is unset\nendif::[]",
-      "ifdef::a,b[]\nany\nendif::[]",
-      "ifdef::a+b[]\nall\nendif::[]",
-      ":n: 3",
-      "ifeval::[{n} > 2]\nbig\nendif::[]",
-      "ifdef::a[inline]",
-    ].join("\n\n");
-    const out = await body(src);
-    expect(out).toContain("A is set");
-    expect(out).not.toContain("A is unset");
-    expect(out).toContain("any");
-    expect(out).not.toContain("all");
-    expect(out).toContain("big");
-    expect(out).toContain("inline");
+  test("substituted values are not re-parsed as markup", async () => {
+    expect(await typst("attributes")).toContain("stays literal text: \\*not bold\\*.");
   });
-  test("caller attributes win; backend-pdf is defined", async () => {
-    expect(await body("{x}", { attributes: { x: "cli" } })).toBe("cli");
-    expect(await body("ifdef::backend-pdf[]\nyes\nendif::[]")).toBe("yes");
+  test("counters", async () => {
+    expect(await typst("attributes")).toContain("Counters: 1 2 3.");
   });
-  test("counters and escapes", async () => {
-    expect(await body("{counter:n} {counter:n} \\{n}")).toBe("1 2 {n}");
+  test("ifdef, ifndef, ifeval and the single-line form", async () => {
+    const out = bodyOf(await typst("attributes"));
+    expect(out).toContain("A is set.");
+    expect(out).not.toContain("A is unset.");
+    expect(out).toContain("Any of them is set.");
+    expect(out).not.toContain("All of them are set.");
+    expect(out).toContain("Big n.");
+    expect(out).toContain("Single-line form.");
+  });
+  test("backend attributes", async () => {
+    const out = await typst("attributes");
+    expect(out).toContain("The pdf backend attribute is defined.");
+    expect(out).toContain("The typst backend attribute is defined.");
+  });
+  test("caller attributes override and resolve references", async () => {
+    const result = await convertFixture("attributes", { attributes: { "from-caller": "from the CLI" } });
+    expect(result.typst).toContain("Caller attribute: from the CLI.");
+    expect(result.diagnostics.map((d) => d.message).join()).not.toContain("from-caller");
   });
 });
 
 describe("includes", () => {
-  const dir = mkdtempSync(join(tmpdir(), "adoc2typ-inc-"));
-  writeFileSync(join(dir, "ch.adoc"), "= Chapter\n\nIn chapter.\n\n== Inner\n\nText.");
-  writeFileSync(join(dir, "tagged.adoc"), "before\n// tag::a[]\ninside\n// end::a[]\nafter");
-  const opts = { file: join(dir, "main.adoc") };
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
-
-  test("leveloffset shifts included headings and is restored", async () => {
-    const out = await body("= Book\n:doctype: book\n\ninclude::ch.adoc[leveloffset=+1]\n\n== After", opts);
-    expect(out).toContain("= Chapter <_chapter>");
-    expect(out).toContain("== Inner");
-    expect(out).toContain("= After");
+  test("leveloffset shifts included headings and is restored afterwards", async () => {
+    const out = await typst("includes");
+    expect(out).toContain("= Included chapter <_included_chapter>");
+    expect(out).toContain("== Included section <_included_section>");
+    expect(out).toContain("= Back to the main file <_back_to_the_main_file>");
   });
-  test("tags and lines", async () => {
-    expect(await body("include::tagged.adoc[tag=a]", opts)).toBe("inside");
-    expect(await body("include::tagged.adoc[lines=1]", opts)).toBe("before");
+  test("tags and line ranges", async () => {
+    const out = await typst("includes");
+    expect(out).toContain("Only this line is included.");
+    expect(out).not.toContain("Not included");
+    expect(out).toContain("second line");
+    expect(out).not.toContain("first line");
+    expect(out).not.toContain("third line");
   });
-  test("missing include warns", async () => {
-    expect((await warnings("include::nope.adoc[]", opts)).join()).toMatch(/include file not found|nope/i);
+  test("a missing include is reported", async () => {
+    expect((await messages("includes")).join()).toContain("include file not found");
   });
 });
 
 describe("inline", () => {
-  test("quotes", async () => {
-    expect(await body("*b* _i_ `m` #h# ^s^ ~u~ **un**constrained")).toBe(
-      '#strong[b] #emph[i] #raw("m") #highlight[h] #super[s] #sub[u] #strong[un]constrained',
+  test("quotes and marks", async () => {
+    const out = await typst("inline");
+    expect(out).toContain(
+      '#strong[strong] #emph[emphasis] #raw("monospace") #highlight[mark] #super[super] #sub[sub] #strong[un]constrained.',
     );
+    expect(out).toContain('#strong[#emph[nested] #raw("inside")]');
   });
-  test("constrained marks ignore snake_case and math-like text", async () => {
-    expect(await body("snake_case_name and 2*3*4")).toBe("snake\\_case\\_name and 2\\*3\\*4");
-  });
-  test("nesting and roles", async () => {
-    expect(await body("*_both_*")).toBe("#strong[#emph[both]]");
-    expect(await body("[.underline]#u#")).toContain("#underline[");
-    expect(await body("[.big]#wide#")).toBe('#adoc-role(("big",))[wide]');
-  });
-  test("links, autolinks, email", async () => {
-    expect(await body("https://a.b/c[text] https://a.b/d. user@example.org link:x.html[x]")).toBe(
-      '#link("https://a.b/c")[text] #link("https://a.b/d"). #link("mailto:user@example.org")[user\\@example.org] #link("x.html")[x]',
-    );
-  });
-  test("text directly after a code expression cannot become a call chain", async () => {
-    expect(await body("*b*.foo and *c*(x)")).toBe("#strong[b]\\.foo and #strong[c]\\(x)");
-  });
-  test("passthroughs and escapes", async () => {
-    expect(await body("+*not bold*+ \\*x* ++a_b_c++")).toBe("\\*not bold\\* \\*x\\* a\\_b\\_c");
+  test("roles", async () => {
+    const out = await typst("inline");
+    expect(out).toContain("#underline[underlined]");
+    expect(out).toContain("#strike[struck]");
+    expect(out).toContain('#adoc-role(("custom-role",))[custom]');
   });
   test("curly quotes and typographic replacements", async () => {
-    expect(await body("\"`quoted`\" and '`single`'")).toBe("“quoted” and ‘single’");
-    expect(await body("(C) 2026 -> ok... it's")).toBe("© 2026 → ok\\.\\.\\.​ it’s".replace("\\.\\.\\.", "…"));
+    const out = await typst("inline");
+    expect(out).toContain("“double quoted” and ‘single quoted’.");
+    expect(out).toMatch(/© ® ™\s+—\s+dashes…/u);
+    expect(out).toContain("arrows → ⇒ and it’s.");
   });
-  test("footnotes, kbd, menu, stem", async () => {
-    expect(await body("a footnote:[note] b")).toBe("a #footnote[note] b");
-    expect(await body(":experimental:\n\nkbd:[Ctrl+Alt+Del] menu:File[Save As]")).toContain(
-      '#adoc-kbd("Ctrl", "Alt", "Del")',
+  test("constrained marks leave snake_case and math-like text alone", async () => {
+    expect(await typst("inline")).toContain("snake\\_case\\_name and 2\\*3\\*4 alone.");
+  });
+  test("text after a code expression cannot become a call chain", async () => {
+    expect(await typst("inline")).toContain("#strong[b]\\.foo and #strong[c]\\(x).");
+  });
+  test("passthroughs and escapes", async () => {
+    const out = await typst("inline");
+    expect(out).toContain("Passthroughs: \\*not bold\\* and a\\_b\\_c.");
+    expect(out).toContain(
+      "Escapes: \\*not bold\\*, 50% of \\$5 \\# tag, a\\_b\\_c, \\<angle>, \\[brackets\\]",
     );
-    expect(await body(":experimental:\n\nkbd:[Ctrl+Alt+Del] menu:File[Save As]")).toContain(
-      '#adoc-menu("File", "Save As")',
-    );
-    expect(await body("stem:[x^2]")).toBe('#adoc-math("asciimath", "x^2")');
-    expect(await body(":stem: latexmath\n\nstem:[x^2]")).toBe('#adoc-math("latexmath", "x^2")');
+  });
+  test("links, autolinks, mail", async () => {
+    const out = await typst("inline");
+    expect(out).toContain('#link("https://example.org")[A link]');
+    expect(out).toContain('#link("https://example.org/bare")');
+    expect(out).toContain('#link("https://example.org/end").');
+    expect(out).toContain('#link("mailto:user@example.org")[user\\@example.org]');
+    expect(out).toContain('#link("page.html")[a relative link]');
   });
   test("hard line breaks", async () => {
-    expect(await body("one +\ntwo")).toBe("one\\\ntwo");
+    expect(await typst("inline")).toContain("A hard break\\\ncontinues.");
   });
-  test("footnote reuse", async () => {
-    const out = await body("a footnote:n[Note] b footnote:n[]");
-    expect(out).toBe("a #footnote[Note]<fn-n> b #footnote(<fn-n>)");
+  test("experimental macros, stem and index terms", async () => {
+    const out = await typst("inline");
+    expect(out).toContain('#adoc-kbd("Ctrl", "Shift", "N")');
+    expect(out).toContain('#adoc-btn("OK")');
+    expect(out).toContain('#adoc-menu("File", "Save As")');
+    expect(out).toContain('#adoc-math("asciimath", "x^2")');
+    expect(out).toContain('#adoc-indexterm(("visible",), visible: true)');
+    expect(out).toContain('#adoc-indexterm(("hidden", "term"))');
+  });
+  test("line starts that look like markup are escaped", async () => {
+    expect(await typst("inline")).toContain("\\= not a heading\n\\- not a list\n\\+ not a list");
+  });
+  test("stem follows the document's :stem: attribute", async () => {
+    const out = await typst("math");
+    expect(out).toContain('#adoc-math("latexmath", "x^2 + y^2")');
+    expect(out).toContain('#adoc-math("asciimath", "a/b")');
+    expect(out).toContain(
+      '#adoc-math("latexmath", "\\\\sum_{i=1}^{n} i = \\\\frac{n(n+1)}{2}", block: true)',
+    );
+  });
+});
+
+describe("sections", () => {
+  test("article sections start at level 1", async () => {
+    const out = await typst("article");
+    expect(out).toContain("= First section <_first_section>");
+    expect(out).toContain("=== Deeper section with an explicit id <explicit-id>");
+  });
+  test("book without parts: chapters are level 1", async () => {
+    const out = await typst("book-chapters");
+    expect(out).toContain("parts: false");
+    expect(out).toContain("= Chapter one <_chapter_one>");
+    expect(out).toContain("== Section <_section>");
+  });
+  test("book with parts: everything shifts down one level", async () => {
+    const out = await typst("book-parts");
+    expect(out).toContain("parts: true");
+    expect(out).toContain("= Part One <_part_one>");
+    expect(out).toContain("== First chapter <_first_chapter>");
+    expect(out).toContain("=== A section <_a_section>");
+  });
+  test("automatic ids are stable and de-duplicated", async () => {
+    const out = await typst("article");
+    expect(out).toContain("<_repeated_title>");
+    expect(out).toContain("<_repeated_title_2>");
+    expect(out).toContain("in the title <_section_with_monospace_and_emphasis_in_the_title>");
+  });
+  test("explicit ids, roles and discrete headings", async () => {
+    const out = await typst("article");
+    expect(out).toContain("<role-id>");
+    expect(out).toContain('#adoc-role(("some-role",))[');
+    expect(out).toContain("#heading(level: 2, outlined: false, numbering: none)[A discrete heading]");
+  });
+  test("special sections wrap their heading and content", async () => {
+    const out = await typst("book-parts");
+    expect(out).toContain("#adoc-preface[\n== Preface <_preface>\n\nA preface.\n]");
+    expect(out).toContain("#adoc-appendix[");
+    expect(out).toContain("#adoc-glossary[");
+    expect(out).toContain("#adoc-colophon[");
+    expect(out).toContain("#adoc-dedication[");
+  });
+  test("abstract and part intro", async () => {
+    const out = await typst("book-parts");
+    expect(out).toContain("#adoc-abstract[\nAn abstract.\n]");
+    expect(out).toContain("#adoc-partintro[\nIntroduction to part one.\n]");
+  });
+});
+
+describe("lists", () => {
+  test("nesting", async () => {
+    expect(await typst("lists")).toContain("- unordered one\n  - nested\n    - deeper\n- unordered two");
+  });
+  test("ordered lists: start value and numbering styles", async () => {
+    const out = await typst("lists");
+    expect(out).toContain("4. starts at four\n+ five");
+    expect(out).toContain('#set enum(numbering: "a.")');
+    expect(out).toContain('#set enum(numbering: "I)")');
+  });
+  test("checklists", async () => {
+    expect(await typst("lists")).toContain("- ☑ checked\n- ☐ unchecked");
+  });
+  test("list continuation attaches blocks to the item", async () => {
+    expect(await typst("lists")).toContain(
+      '- a list item\n\n  with an attached paragraph\n\n  #raw(block: true, "and an attached listing")\n- the next item',
+    );
+  });
+  test("description lists: nesting and shared definitions", async () => {
+    const out = await typst("lists");
+    expect(out).toContain("/ Parent:\n  / Child: Nested definition.");
+    expect(out).toContain("/ First term#linebreak()Second term: Shared definition.");
+  });
+  test("a list of a different kind right after a blank line nests (AsciiDoc semantics)", async () => {
+    expect(await typst("lists")).toContain("- a parent item\n  + nested: a list of a different kind");
+  });
+  test("block titles on lists", async () => {
+    expect(await typst("lists")).toContain("#adoc-block-title[A captioned list]\n- captioned item");
   });
 });
 
 describe("blocks", () => {
-  test("sections become headings and shift under parts", async () => {
-    const flat = await body("= B\n:doctype: book\n\n== Ch\n\n=== Sec\n\ntext");
-    expect(flat).toContain("= Ch <_ch>");
-    expect(flat).toContain("== Sec <_sec>");
-    const parts = (await convert("= B\n:doctype: book\n\n= Part\n\n== Ch\n\ntext")).typst;
-    expect(parts).toContain("parts: true");
-    expect(parts).toContain("= Part <_part>");
-    expect(parts).toContain("== Ch <_ch>");
-  });
-  test("automatic ids are de-duplicated", async () => {
-    const out = await body("== Same\n\n== Same\n");
-    expect(out).toContain("<_same>");
-    expect(out).toContain("<_same_2>");
-  });
-  test("special sections wrap their content", async () => {
-    expect(await body("[preface]\n== Intro\n\ntext")).toBe("#adoc-preface[\n= Intro <_intro>\n\ntext\n]");
-    expect(await body("[appendix]\n== Extra\n\ntext")).toContain("#adoc-appendix[");
-  });
-  test("nested and ordered lists, continuation", async () => {
-    const out = await body("* a\n** b\n* c\n+\nattached\n\n//-\n\n. one\n. two");
-    expect(out).toBe("- a\n  - b\n- c\n\n  attached\n\n+ one\n+ two");
-  });
-  test("a list of a different kind after a blank line nests (AsciiDoc semantics)", async () => {
-    expect(await body("* c\n\n. one")).toBe("- c\n  + one");
-  });
-  test("adjacent lists of the same kind are separated", async () => {
-    expect(await body("* a\n\n//-\n\n* b")).toContain("#v(0pt, weak: true)");
-  });
-  test("description lists, nested and with multiple terms", async () => {
-    const out = await body("A::\nB:: desc\nOuter::\nInner::: nested");
-    expect(out).toBe("/ A#linebreak()B: desc\n/ Outer:\n  / Inner: nested");
-  });
   test("admonitions", async () => {
-    expect(await body("NOTE: careful")).toBe('#adoc-admonition("note")[\ncareful\n]');
-    expect(await body(".Title\n[WARNING]\n====\nbad\n====")).toBe(
-      '#adoc-admonition("warning", title: [Title])[\nbad\n]',
+    const out = await typst("blocks");
+    expect(out).toContain('#adoc-admonition("note")[\nA note.\n]');
+    expect(out).toContain('#adoc-admonition("tip", title: [Titled tip])[');
+    expect(out).toContain('#adoc-admonition("warning")[\nCareful.\n]');
+  });
+  test("quote, verse, sidebar, example", async () => {
+    const out = await typst("blocks");
+    expect(out).toContain(
+      "#quote(block: true, attribution: [Edsger W. Dijkstra, Letter])[\nSimplicity is prerequisite for reliability.\n]",
     );
+    expect(out).toContain("#adoc-verse(attribution: [Anonymous])[\nRoses are red \\\nViolets are blue\n]");
+    expect(out).toContain("#adoc-sidebar(title: [Sidebar title])[\nA sidebar.\n]");
+    expect(out).toContain("#adoc-example(title: [Example title])[\nAn example.\n]");
   });
-  test("source blocks, callouts and list", async () => {
-    const out = await body("[source,zig]\n----\nconst a = 1; // <1>\n----\n<1> Explained");
-    expect(out).toContain('adoc-callout-code(lang: "zig", callouts: ((0, 1),), "const a = 1;")');
-    expect(out).toContain("#adoc-callout-list(([Explained],))");
-  });
-  test("listing keeps content verbatim", async () => {
-    const out = await body("----\n= not a heading\n*not bold*\n<tag> & more\n----");
-    expect(out).toBe('#raw(block: true, "= not a heading\\n*not bold*\\n<tag> & more")');
-  });
-  test("tables: header, spans, alignment", async () => {
-    const out = await body('[cols="1,2"]\n|===\n|A |B\n\n2+^|span\n|x |y\n|===');
-    expect(out).toContain("columns: (1fr, 2fr)");
-    expect(out).toContain("table.header([A], [B])");
-    expect(out).toContain("table.cell(colspan: 2, align: center)[span]");
-  });
-  test("asciidoc table cells nest blocks", async () => {
-    const out = await body('[cols="1a"]\n|===\n|\n* one\n* two\n|===');
-    expect(out).toContain("- one");
-    expect(out).toContain("- two");
-  });
-  test("block title becomes figure caption", async () => {
-    const out = await body(".Cap\n|===\n|a\n|===");
-    expect(out).toContain("#figure(");
-    expect(out).toContain("caption: [Cap]");
-  });
-  test("quotes, verse, sidebar", async () => {
-    expect(await body("[quote, Author, Source]\n____\nText\n____")).toBe(
-      "#quote(block: true, attribution: [Author, Source])[\nText\n]",
-    );
-    expect(await body("****\nside\n****")).toBe("#adoc-sidebar()[\nside\n]");
-    expect(await body("[verse, A]\n____\nl1\nl2\n____")).toBe("#adoc-verse(attribution: [A])[\nl1 \\\nl2\n]");
-  });
-  test("image block", async () => {
-    expect(await body(".Cap\nimage::a.png[Alt,100]")).toBe(
-      '#figure(\n  image("a.png", alt: "Alt", width: 75pt),\n  caption: [Cap],\n)',
-    );
+  test("breaks, roles and hard breaks", async () => {
+    const out = await typst("blocks");
+    expect(out).toContain("#line(length: 100%)");
+    expect(out).toContain("#pagebreak()");
+    expect(out).toContain('#adoc-role(("lead",))[\nA paragraph with a role.\n]');
+    expect(out).toContain("Line one\\\nLine two");
   });
   test("comments are dropped", async () => {
-    expect(await body("a\n\n// line\n\n////\nblock\n////\n\nb")).toBe("a\n\nb");
+    const out = await typst("blocks");
+    expect(out).not.toContain("a line comment");
+    expect(out).not.toContain("a block comment");
   });
   test("typst passthrough blocks are emitted verbatim", async () => {
-    expect(await body("[typst]\n++++\n#lorem(3)\n++++")).toBe("#lorem(3)");
+    expect(await typst("blocks")).toContain("\n#lorem(5)\n");
+  });
+  test("images: captioned block image and inline image", async () => {
+    const out = await typst("blocks");
+    expect(out).toContain(
+      '#figure(\n  align(center, image("../fixtures/images/diagram.svg", alt: "A diagram", width: 150pt)),\n  caption: [A captioned image],\n)',
+    );
+    expect(out).toContain('#box(image("../fixtures/images/diagram.svg", alt: "icon", width: 12pt))');
   });
 });
 
-describe("cross references", () => {
-  test("resolved and unresolved", async () => {
-    const out = await body("== Target\n\nSee <<_target>> and <<_target,custom>> and <<nope>>.");
-    expect(out).toContain("#link(<_target>)[Target]");
-    expect(out).toContain("#link(<_target>)[custom]");
-    expect((await warnings("See <<nope>>.")).join()).toContain("unresolved cross reference: nope");
+describe("code", () => {
+  test("source blocks with callouts", async () => {
+    const out = await typst("code");
+    expect(out).toContain(
+      '#adoc-callout-code(lang: "zig", callouts: ((0, 1), (2, 2)), "const std = @import(\\"std\\");',
+    );
+    expect(out).toContain("#adoc-callout-list(([Imports the standard library.], [The entry point.],))");
   });
-  test("references to bibliography entries become citations", async () => {
-    const out = await body("See <<b1>>, <<b1,custom>>.\n\n[bibliography]\n== Refs\n\n* [[[b1]]] A book.");
-    expect(out).toStartWith("See @b1, @b1.");
-    expect(out).toContain("#bibliography(");
+  test("captioned listings become figures", async () => {
+    expect(await typst("code")).toContain(
+      '#figure(\n  raw(block: true, lang: "python", "def f():\\n    return \\"= not a heading\\""),\n  caption: [A captioned listing],\n)',
+    );
+  });
+  test("listing content is verbatim", async () => {
+    expect(await typst("code")).toContain('#raw(block: true, "plain listing with <angle> & *stars*")');
+  });
+  test("literal blocks keep indentation; fenced blocks keep their language", async () => {
+    const out = await typst("code");
+    expect(out).toContain('#raw(block: true, "literal block\\n    keeps indentation")');
+    expect(out).toContain('#raw(block: true, lang: "rust", "fn main() {}")');
+  });
+});
+
+describe("tables", () => {
+  test("header row, column widths and caption", async () => {
+    const out = await typst("tables");
+    expect(out).toContain("columns: (1fr, 2fr, 1fr)");
+    expect(out).toContain("table.header([Name], [Description], [Count])");
+    expect(out).toContain("caption: [Captioned table]");
+    expect(out).toContain("[The first letter, with #strong[markup].]");
+  });
+  test("column alignment is stated once, on the table", async () => {
+    const out = await typst("tables");
+    expect(out).toContain("align: (left, center, right)");
+    expect(out).not.toContain("table.cell(align: center)[2]");
+  });
+  test("column and row spans", async () => {
+    const out = await typst("tables");
+    expect(out).toContain("table.cell(colspan: 2)[spans two columns]");
+    expect(out).toContain("table.cell(rowspan: 2)[spans two rows]");
+  });
+  test("CSV tables and footers", async () => {
+    const out = await typst("tables");
+    expect(out).toContain("table.header([name], [value])");
+    expect(out).toContain("table.footer([F1], [F2])");
+  });
+  test("AsciiDoc cells nest blocks", async () => {
+    expect(await typst("tables")).toContain("[- list in a cell\n- another\n\nParagraph in a cell.]");
+  });
+});
+
+describe("cross references and footnotes", () => {
+  test("xrefs resolve to section titles, custom text and anchors", async () => {
+    const out = await typst("xrefs");
+    expect(out).toContain("#link(<target>)[Target section]");
+    expect(out).toContain("#link(<target>)[custom text]");
+    expect(out).toContain("#link(<target>)[an xref macro]");
+    expect(out).toContain("#link(<_a_section>)[A section]");
+    expect(out).toContain("#link(<anchored>)[\\[anchored\\]]");
+    expect(out).toContain("#metadata(none)<anchored>A paragraph with an inline anchor.");
+  });
+  test("unresolved references are reported and kept readable", async () => {
+    expect(await messages("xrefs")).toContain("unresolved cross reference: does-not-exist");
+    expect(await typst("xrefs")).toContain("An unresolved reference: \\[does-not-exist\\].");
+  });
+  test("footnotes and reuse", async () => {
+    const out = await typst("xrefs");
+    expect(out).toContain("#footnote[The note text.]");
+    expect(out).toContain("#footnote[A shared note.]<fn-shared> and again #footnote(<fn-shared>)");
   });
 });
 
 describe("bibliography", () => {
-  const yamlOf = async (adoc: string) => (await convert(adoc)).bibliographies[0] ?? "";
-  const section = (entries: string) => `[bibliography]\n== References\n\n${entries}\n`;
+  const yaml = async (name: string) => (await convertFixture(name)).bibliographies[0] ?? "";
 
   test("url-only entry", async () => {
-    expect(await yamlOf(section("* [[[a]]] https://dcm.dev/."))).toBe(
-      'a:\n  type: misc\n  url: "https://dcm.dev/"\n',
+    expect(await yaml("bibliography")).toContain('dcm-dev:\n  type: misc\n  url: "https://dcm.dev/"\n');
+  });
+  test("title and url, with attributes substituted", async () => {
+    expect(await yaml("bibliography")).toContain(
+      'doctests:\n  type: misc\n  title: "Doctests in the Zig documentation"\n  url: "https://ziglang.org/documentation/0.16.0/#Doctests"\n',
     );
   });
-  test("title and url, attributes substituted", async () => {
-    const yaml = await yamlOf(
-      ":v: 0.16.0\n\n" + section("* [[[d]]] Doctests in the Zig docs — https://z.org/{v}/#Doctests"),
-    );
-    expect(yaml).toBe(
-      'd:\n  type: misc\n  title: "Doctests in the Zig docs"\n  url: "https://z.org/0.16.0/#Doctests"\n',
+  test("author, year and italic title, with the remainder as a note", async () => {
+    expect(await yaml("bibliography")).toContain(
+      'apa:\n  type: misc\n  author:\n    name: "Hunt & Thomas"\n  date: 1999\n  title: "The Pragmatic Programmer"\n  note: "Addison-Wesley"\n',
     );
   });
-  test("author, year and italic title", async () => {
-    const yaml = await yamlOf(section("* [[[c]]] Estado Plurinacional. (2009). _Constitución_. Gaceta."));
-    expect(yaml).toBe(
-      'c:\n  type: misc\n  author:\n    name: "Estado Plurinacional"\n  date: 2009\n  title: "Constitución"\n  note: "Gaceta"\n',
+  test("nested items become notes; entries without an anchor are still listed", async () => {
+    const out = await yaml("bibliography");
+    expect(out).toContain(
+      'nested:\n  type: misc\n  title: "An entry with nested items"\n  note: "Section 2.5: Limiting complexity."\n',
     );
+    expect(out).toContain('title: "An entry without an anchor, still listed"');
+    expect(out).toMatch(/^ref-\d+:$/m);
   });
   test("unstructured entries keep their whole text as the title", async () => {
-    const yaml = await yamlOf(section("* [[[g]]] Gamma et al. Design Patterns. 1994."));
-    expect(yaml).toContain('title: "Gamma et al. Design Patterns. 1994"');
+    expect(await yaml("bibliography-deep")).toContain('title: "Gamma et al. Design Patterns. 1994"');
   });
-  test("entries without an anchor get generated keys; nested items become notes", async () => {
-    const yaml = await yamlOf(section("* No anchor here.\n* [[[n]]] Outer.\n** Inner detail."));
-    expect(yaml).toContain("ref-1:");
-    expect(yaml).toContain('note: "Inner detail."');
+  test("keys YAML would misread are quoted", async () => {
+    expect(await yaml("bibliography-deep")).toStartWith('"no":');
   });
-  test("custom labels and list captions are reported, not silently lost", async () => {
-    const out = await body(section(".Caption\n* [[[a,lbl]]] Entry."));
-    expect(out).toContain("// adoc2typ: list captions are not representable in Hayagriva: Caption");
-    expect(out).toContain("custom reference labels are not representable in Hayagriva: a (lbl)");
+  test("citations", async () => {
+    const out = await typst("bibliography");
+    expect(out).toContain("Usage in citations @dcm-dev and @doctests, then @apa.");
   });
-  test("keys that YAML would misread are quoted", async () => {
-    expect(await yamlOf(section("* [[[no]]] Entry."))).toStartWith('"no":');
+  test("a citation that runs into following text uses the long form", async () => {
+    const out = await typst("bibliography-deep");
+    expect(out).toContain("Cited as #cite(<no>)s and, at the end of a sentence, @no. Section:");
   });
-  test("citation followed by text uses the long form", async () => {
-    const out = await body("<<a>>s and <<a>>.\n\n" + section("* [[[a]]] Entry."));
-    expect(out).toStartWith("#cite(<a>)s and @a.");
+  test("lost information is reported, not silent", async () => {
+    const out = await typst("bibliography");
+    expect(out).toContain(
+      "// adoc2typ: list captions are not representable in Hayagriva: Flutter/Dart; Zig; Books",
+    );
+    expect(out).toContain(
+      "custom reference labels are not representable in Hayagriva: dcm-dev (flutter-dcm), doc-comments (zig-doc-comments)",
+    );
   });
-  test("the generated bibliography title replaces the section heading", async () => {
-    const out = await body(":lang: es\n\nSee <<_refs>>.\n\n[bibliography]\n== Refs\n\n* [[[a]]] Entry.");
-    expect(out).not.toContain("= Refs");
+  test("Typst's generated title replaces the section heading and keeps the id", async () => {
+    const out = await typst("bibliography");
+    expect(out).not.toContain("= References");
     expect(out).not.toContain("title: none");
-    expect(out).toContain("#link(<_refs>)[Refs]");
-    expect(out).toMatch(/\) <_refs>\n\]$/);
-    expect(out).toContain('the section title "Refs" is replaced');
+    expect(out).toContain(") <_references>\n]");
+    expect(out).toContain('the section title "References" is replaced by Typst\'s generated one');
   });
-  test("a deeper bibliography keeps its heading level", async () => {
-    const out = await body("== Chapter\n\n=== Sub\n\n[bibliography]\n==== Refs\n\n* [[[a]]] Entry.");
+  test("a nested bibliography keeps its heading level", async () => {
+    const out = await typst("bibliography-deep");
     expect(out).toContain("#set heading(offset: 2)");
+    expect(out).toContain("#link(<_referencias>)[Referencias]");
+  });
+  test("the YAML is also returned for callers that want a file", async () => {
+    const result = await convertFixture("bibliography");
+    expect(result.bibliographies).toHaveLength(1);
+    expect(result.bibliographies[0]).toStartWith("dcm-dev:\n");
+  });
+});
+
+describe("real-world documents", () => {
+  test("docent: a book with a glossary, nested description lists and a bibliography", async () => {
+    const result = await convertFixture("docent");
+    expect(result.diagnostics).toEqual([]);
+    expect(result.typst).toContain("title: [Docent]");
+    expect(result.typst).toContain("subtitle: [Code Quality Linter for Zig]");
+    expect(result.typst).toContain("/ Module types:\n  / Libraries or modules per-se:");
+    expect(result.bibliographies).toHaveLength(1);
+  });
+  test("upsa-regulations: links with pass:[] targets and a captioned bibliography", async () => {
+    const result = await convertFixture("upsa-regulations");
+    expect(result.diagnostics).toEqual([]);
+    expect(result.typst).toContain('#link("Reglamento de graduación.pdf")[Reglamento de graduación]');
+    expect(result.bibliographies[0]).toContain('author:\n    name: "Estado Plurinacional de Bolivia"');
   });
 });

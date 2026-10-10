@@ -24,6 +24,14 @@ Inline math stem:[x^2] and latexmath:[\sqrt{2}].
 
 An index term ((visible)) and (((hidden, term))).
 
+Constrained marks leave snake_case_name and 2*3*4 alone.
+
+After a code expression: *b*.foo and *c*(x).
+
+Passthroughs: +*not bold*+ and ++a_b_c++.
+
+Autolinks end before a sentence period: https://example.org/end. Mail user@example.org and link:page.html[a relative link].
+
 Line starts that look like markup:
 = not a heading
 - not a list
