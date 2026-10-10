@@ -21,7 +21,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       # The sample tests compile the generated Typst.
-      - uses: typst-community/setup-typst@v4
+      - uses: typst-community/setup-typst@v5
 
       - run: bun install --frozen-lockfile
 
