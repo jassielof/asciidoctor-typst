@@ -48,11 +48,11 @@ export function bodyOf(typst: string): string {
 
 /** Diagnostics as stored in `<name>.diagnostics.txt`; absolute paths are made repo-relative. */
 export function formatDiagnostics(result: ConvertResult): string {
-  const rootPattern = new RegExp(
-    [root, root.replace(/\\/g, "/")].map((r) => r.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") +
-      "[\\\\/]?",
-    "g",
-  );
+  // The root appears with either separator style; strip it together with its trailing separator.
+  const alternatives = [...new Set([root, root.replace(/\\/g, "/")])]
+    .map((r) => r.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+  const rootPattern = new RegExp(`(?:${alternatives})[\\\\/]?`, "g");
   return result.diagnostics
     .map((d) => {
       const file = d.file?.split(/[\\/]/).pop();
