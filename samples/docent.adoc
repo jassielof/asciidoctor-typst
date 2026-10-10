@@ -1,0 +1,202 @@
+= Docent: Code Quality Linter for Zig
+ifdef::backend-html5[]
+:toc: left
+endif::[]
+ifdef::backend-pdf[]
+:toc: auto
+endif::[]
+ifdef::env-github[]
+:toc!:
+endif::[]
+:doctype: book
+:source-highlighter: rouge
+:stem: latexmath
+:repo: https://github.com/jassielof/docent/
+:default-repo-branch: main
+:repo-source: {repo}tree/{default-repo-branch}/
+:test-fixtures: {repo-source}tests/fixtures/
+:valid-fixtures: {test-fixtures}valid/
+:invalid-fixtures: {test-fixtures}invalid/
+:website: https://jassielof.github.io/docent/
+:zig-version: 0.16.0
+:zig-docs: https://ziglang.org/documentation/{zig-version}/
+:zig-stdlib: {zig-docs}std/
+
+[abstract]
+--
+Docent is a code quality linter for Zig, focused on documentation, complexity and style. It's available as a CLI and library.
+--
+
+[preface]
+== About this documentation
+
+This documentation covers both the CLI tool and the public library API. The CLI docs are aimed at end users; the library docs target developers embedding Docent programmatically.
+
+.Available as:
+- {website}[This README].
+- {website}cli/[The CLI documentation], available as well as a {website}cli/docent.pdf[PDF] for offline reading.
+- {website}lib/[The library documentation].
+
+[glossary]
+== Concepts and terminology
+
+Some key terms for better understanding taken from the {zig-docs}#Compilation-Model[compilation model]:
+
+Zig module::
+A Zig package or compilation is made up of one or more modules.
+
+Zig source file::
+A Zig source file is a file with the `.zig` extension. A module is defined by a collection of these.
+
+Manifest::
+The project's `build.zig.zon` source file.
+
+Build system script::
+The `build.zig` source file, which works similar to an executable, so it’s basically an module root with the reserved `build()` entry point.
+
+Module root::
+The designated top-level file of a module's source tree, declared in `build.zig`. Serves as the scan origin for the compiler, linter, and doc system. For libraries, it is also the *import surface* resolved by `@import()`. Not to be confused with *entry point*, which is execution-specific and only applies to executables and the test runner. By convention usually named `root.zig`, but this is not a strict requirement.
+
+Module types::
+Libraries or modules per-se:::
+Modules that are meant to be imported by other modules, these don’t have a `main()` public function, and by convention are usually named `root.zig`, but this is not a strict requirement. When scanned, the linter will crawl around all the public reachable declarations from the module root, *this behavior is shared across all module types.*
+
+Executables:::
+Executables are those modules that have the special public function `main()`, a source file with that function is strictly considered an executable, treated as a module root.
+
+Test module:::
+Test modules are similar to libraries, any `test` declaration presence can mark the module as a test module, Zig allows to define special test modules too.
+
+Doc comments:: Documentation comments.
+`///`::: See <<doc-comments>>.
+`//!`::: See <<top-level-doc-comments>>. As well, these are marked as an https://codeberg.org/ziglang/zig/issues/30132[_urgent proposal_ for removal].
+Doctests::: See <<doctests>>. As well, there’s an https://github.com/ziglang/zig/issues/19518[open proposal to extend the syntax by Mitchell Hashimoto]. It aims to allow multiple doctest declarations for the same identifier but each one having its own description.
+
+== Scanning strategy
+
+.Scanning modes:
+Public API surface:: Depends on a module root, and all exposed public declarations reaachable from it. Similar to how one would use a module as a dependency.
+Reachability traversal:: Similar to public API surface, but it includes non-public declarations, so the surface area is larger.
+Syntactic traversal:: This doesn't depend on a module root, it just traverses all the syntax of the files being scanned. This is similar to how formatters work, which might include orphan files that are not reachable from any module.
+
+=== Default scanning without path arguments
+
+Whenever the program is run without any path arguments, the current working directory is scanned and it's expected to be a project. The scanning strategy will attempt to find both build system script and manifest to determine the project structure.
+
+==== Project discovery
+
+Project discovery is performed by looking at both script and manifest files, considering. It'll attempt find the nearest script either in the current working directory or any of its parent directories, and then look for a manifest to determine for complementary information, such as: local dependencies and their paths, bundled paths, project name, etc.
+
+* If there are local dependencies, they can be linted optionally by passing `--deps`.
+* Paths listed are entirely for supporting information, as sometimes paths or even the manifest isn't present, or there are no paths listed, so the project discovery is still valid and strictly focused on the build script first.
+
+Based on the build script discovery, the behavior defaults to only public modules being scanned. Executables and test modules are discovered but excluded by default.
+
+.Reachability notes:
+* Traversal is recursive across imported files, so multi-hop public chains are included.
+* Imports reachable only through non-public declarations are excluded.
+* Package imports (for example `@import("std")`) are not treated as local lint targets.
+* `build.zig` and files under `build/` are ignored by default.
+** Instead of files within the build directory, it’s mostly all of those files that are used/imported by the main build script (`build.zig`).
+* This avoids false-positive API checks from build tooling paths that are commonly present in `build.zig.zon` `.paths`.
+* CLI users can opt in with `--include-build-scripts`.
+
+==== Scanning with arguments
+
+When explicit paths are passed, each argument is treated as a file or directory target.
+
+.Supported cases include:
+* A single file.
+* A single directory.
+* A mix of files and directories.
+
+When explicit paths are provided, the default project discovery is disabled and only the specified targets are scanned.
+
+.Path validity
+* Explicit paths are validated strictly by default.
+* If a path does not exist, cannot be accessed, or refers to a non-Zig source file, an error is emitted and the process exits with a non-zero status.
+* If a directory is valid but does not yield any Zig lint targets, a warning is emitted and that directory is skipped.
+* If all explicit targets are valid but none yield any Zig lint targets, the process exits with a non-zero status.
+
+.Path resolution
+* If the target is a Zig source file, it is treated as a module root candidate.
+* If the target is a directory, module roots are resolved within that directory.
+* For each resolved source file or directory, the module kind is determined:
+** A file containing a public `main()` is treated as an executable root module.
+** A file containing a public `build()` is treated as a build script root module.
+** Otherwise, it is treated as a library source file.
+* In all cases, the publicly reachable API is traversed starting from the resolved module root.
+
+== Linting rules
+
+To check the rules documentation, check link:{website}lib/#docent.rules[library documentation rules namespace] for the actual implemented rules.
+
+== Formatting
+
+`docent fmt` formats explicit command-line paths first. When no paths are given,
+it uses `[fmt].include` from `.config/docent.toml`; when that is also unset, it
+uses `.paths` from the nearest `build.zig.zon`. Manifest-derived files are
+limited to `.zig` and `.zon`, while manifest-derived directories are walked
+recursively with the same filter. Entries such as README and license files are
+therefore ignored, as are local path dependencies unless they are selected
+explicitly. If a manifest has no `.paths` field, its project directory is used
+as the filtered recursive root.
+
+Explicit file arguments remain strict: requesting a non-Zig file attempts to
+format that file and reports parsing errors rather than silently ignoring a
+likely typo.
+
+In minimal output, the dedicated `check cogni` and `check cyclo` commands show
+their raw `score/threshold` pair (for example, `30/15`) instead of repeating the
+rule selected by the command. Aggregate `check all` output keeps rule IDs so
+every finding remains attributable. Complexity is an unbounded count, so
+Docent does not present it as a percentage.
+
+`docent check all` ends its full diagnostic report with both the overall
+warning/error total and a per-category, per-rule count breakdown. This keeps
+the aggregate command convenient for CI while making the responsible checks
+explicit.
+
+== Test suite
+
+Please refer to the tests README.
+
+[bibliography]
+== References
+
+.Flutter/Dart
+* [[[dcm-dev]]] https://dcm.dev/.
+
+.Zig
+* [[[doctests]]] Doctests in the Zig documentation — https://ziglang.org/documentation/{zig-version}/#Doctests
+* [[[top-level-doc-comments]]] Top-level documentation comments in the Zig documentation — https://ziglang.org/documentation/{zig-version}/#Top-Level-Doc-Comments
+* [[[doc-comments]]] Doc comments in the Zig documentation — https://ziglang.org/documentation/{zig-version}/#Doc-Comments
+
+.Complexity
+* [[[mccabe-guidance]]] NIST/McCabe guidance (_Structured Testing: A Testing Methodology Using the Cyclomatic Complexity Metric_):
+** Section 2.5: _Limiting cyclomatic complexity to 10_.
+* [[[sonar-cyclomatic]]] Discussing Cyclomatic Complexity — https://www.sonarsource.com/blog/discussing-cyclomatic-complexity/
+* [[[sonar-paper]]] Cognitive Complexity, a Sonar exclusive metric formulated to more accurately measure the relative understandability of methods — https://www.sonarsource.com/resources/cognitive-complexity/
+* [[[sonar-reasoning]]] Sonar's reasoning for defaulting cognitive complexity to 15 — https://community.sonarsource.com/t/s3776-reason-for-the-current-default-value-of-15/127103
+
+.Rust
+* [[[rustdoc-lints]]] The Rustdoc Book — https://doc.rust-lang.org/rustdoc/lints.html[§5. Rustdoc-specific lints].
+* [[[rustc-lints]]] The Rustc Book — https://doc.rust-lang.org/rustc/lints/[§4. Lints].
+* [[[rustc-missing-docs]]] The Rustc Book — https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html#missing-docs[Missing docs lint].
+* [[[clippy-lints]]] https://rust-lang.github.io/rust-clippy/master/index.html[Clippy lints] (filter by `doc` or `documentation`).
+
+.Go
+* [[[godoc-comments]]] https://go.dev/doc/comment[Go Doc Comments].
+* [[[godoc-comment-pkg]]] Go standard library — https://pkg.go.dev/go/doc/comment[`go/doc/comment`].
+* [[[godoc-lint]]] https://github.com/godoc-lint/godoc-lint[Godoc-Lint].
+* [[[golangci-lint]]] https://golangci-lint.run/docs/linters/[Golangci-lint linter suite].
+
+[dedication]
+== Dedication
+
+To Vivienne.
+
+[acknowledgments]
+== Acknowledgments and prior art
+
+Mainly Rust/Cargo’s documentation (and probably Clippy too) and linter checks, while also taking inspiration from Go’s linting tooling. As well as https://codeberg.org/RhyosLabs/ephor[Scott Matheina’s Ephor]

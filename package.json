@@ -1,0 +1,15 @@
+{
+  "name": "adoc2typ",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  },
+  "dependencies": {
+    "@asciidoctor/core": "^4.1.1"
+  }
+}
