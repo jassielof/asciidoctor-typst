@@ -22,13 +22,18 @@ endif::[]
 :zig-docs: https://ziglang.org/documentation/{zig-version}/
 :zig-stdlib: {zig-docs}std/
 
+[dedication]
+= Dedication
+
+To Vivienne.
+
 [abstract]
 --
 Docent is a code quality linter for Zig, focused on documentation, complexity and style. It's available as a CLI and library.
 --
 
 [preface]
-== About this documentation
+= About this documentation
 
 This documentation covers both the CLI tool and the public library API. The CLI docs are aimed at end users; the library docs target developers embedding Docent programmatically.
 
@@ -38,7 +43,7 @@ This documentation covers both the CLI tool and the public library API. The CLI 
 - {website}lib/[The library documentation].
 
 [glossary]
-== Concepts and terminology
+= Concepts and terminology
 
 Some key terms for better understanding taken from the {zig-docs}#Compilation-Model[compilation model]:
 
@@ -72,12 +77,16 @@ Doc comments:: Documentation comments.
 `//!`::: See <<top-level-doc-comments>>. As well, these are marked as an https://codeberg.org/ziglang/zig/issues/30132[_urgent proposal_ for removal].
 Doctests::: See <<doctests>>. As well, there’s an https://github.com/ziglang/zig/issues/19518[open proposal to extend the syntax by Mitchell Hashimoto]. It aims to allow multiple doctest declarations for the same identifier but each one having its own description.
 
-== Scanning strategy
+= Scanning strategy
 
 .Scanning modes:
 Public API surface:: Depends on a module root, and all exposed public declarations reaachable from it. Similar to how one would use a module as a dependency.
 Reachability traversal:: Similar to public API surface, but it includes non-public declarations, so the surface area is larger.
 Syntactic traversal:: This doesn't depend on a module root, it just traverses all the syntax of the files being scanned. This is similar to how formatters work, which might include orphan files that are not reachable from any module.
+
+== hola
+
+adios
 
 === Default scanning without path arguments
 
@@ -190,11 +199,6 @@ Please refer to the tests README.
 * [[[godoc-comment-pkg]]] Go standard library — https://pkg.go.dev/go/doc/comment[`go/doc/comment`].
 * [[[godoc-lint]]] https://github.com/godoc-lint/godoc-lint[Godoc-Lint].
 * [[[golangci-lint]]] https://golangci-lint.run/docs/linters/[Golangci-lint linter suite].
-
-[dedication]
-== Dedication
-
-To Vivienne.
 
 [acknowledgments]
 == Acknowledgments and prior art

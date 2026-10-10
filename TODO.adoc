@@ -1,0 +1,59 @@
+= TODOs
+
+- [ ] Rename the test folder to tests
+- [ ] Add fixtures and snapshots instead of just samples
+- [ ] AsciiDoc references have a very limited syntax as seen in https://docs.asciidoctor.org/asciidoc/latest/sections/bibliography/ (fetch the documentation and understand its syntax for the section, entries and citations).
+  Typst has its own bibliography format, called Hayagriva, so we'll preprocess the AsciiDoc bibliography into Hayagriva to our best-effort. For example, let's assume the following AsciiDoc bibliography:
+
+[source,asciidoc]
+----
+Usage in citations <<dcm-dev>> and <<doctests,customlabeled>>.
+
+[bibliography]
+== References
+
+.Flutter/Dart
+* [[[dcm-dev,flutter-dcm]]] https://dcm.dev/.
+
+.Zig
+* [[[doctests]]] Doctests in the Zig documentation — https://ziglang.org/documentation/{zig-version}/#Doctests
+* [[[top-level-doc-comments]]] Top-level documentation comments in the Zig documentation — https://ziglang.org/documentation/{zig-version}/#Top-Level-Doc-Comments
+* [[[doc-comments,zig-doc-comments]]] Doc comments in the Zig documentation — https://ziglang.org/documentation/{zig-version}/#Doc-Comments
+----
+
+The addition of list captions is honestly just mine, and sadly there's no way to group bibliography entries in Hayagriva, so those will be lost in the conversion. The previous AsciiDoc bibliography will be converted to the following Hayagriva bibliography:
+
+[source,yaml]
+----
+dcm-dev:
+  type: misc
+  url: https://dcm.dev/
+doctests:
+  type: misc
+  title: Doctests in the Zig documentation
+  url: https://ziglang.org/documentation/{zig-version}/#Doctests
+top-level-doc-comments:
+  type: misc
+  title: Top-level documentation comments in the Zig documentation
+  url: https://ziglang.org/documentation/{zig-version}/#Top-Level-Doc-Comments
+doc-comments:
+  type: misc
+  title: Doc comments in the Zig documentation
+  url: https://ziglang.org/documentation/{zig-version}/#Doc-Comments
+----
+
+And the respective citations and usage in Typst. Notice the `{zig-version}`, which must be replaced with the actual values declared in the attributes.
+
+[source,typst]
+----
+Usage in citations @dcm-dev and @doctests.
+
+#bibliography(
+  full: true,
+  "bib.yaml" // The bibliography file in Hayagriva format. Either the Typst backend will embed the YAML as bytes (`bytes("...")`) or create its dedicated file and reference it with path, whichever is safer and reliable and easy for the user.
+)
+----
+
+The data loss is the custom labels on the entries and the citations as well as caption grouping as there's no equivalent in Hayagriva/Typst. Citation supplements could be used but it's not sematically equivalent to the custom label.
+
+- [ ] 

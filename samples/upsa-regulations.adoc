@@ -1,0 +1,54 @@
+= Reglamentos: Universidad Privada de Santa Cruz de la Sierra
+:doctype: book
+
+[abstract]
+--
+Este repositorio contiene los reglamentos de la Universidad Privada de Santa Cruz de la Sierra, Bolivia.
+--
+
+[colophon]
+== Colofón
+
+Los documentos de este repositorio fueron generados gracias a Typst.
+
+A su vez, estos documentos fueron generados a partir de las versiones originales y oficiales de la universidad, más estos (los generados por Typst) no son oficiales ni reemplazan a los documentos de la universidad, estos documentos son simplemente experimentos y pruebas.
+
+== Reglamentos
+
+.Enlaces a los documentos en formato PDF
+- link:pass:[Reglamento de graduación.pdf][Reglamento de graduación].
+- link:pass:[Reglamento de becas.pdf][Reglamento de becas].
+- link:pass:[Reglamento del estudiante.pdf][Reglamento del estudiante].
+- link:pass:[Reglamento de docencia.pdf][Reglamento de docencia].
+- link:pass:[Reglamento de pasantía profesional y social.pdf][Reglamento de pasantía profesional y social].
+- link:pass:[Reglamento interno de uso de biblioteca.pdf][Reglamento interno de uso de biblioteca].
+
+[bibliography]
+== Referencias
+
+.Marco normativo nacional
+- [[[cpe,1]]] Estado Plurinacional de Bolivia. (2009). _Constitución Política del Estado_.
+- [[[ley070,2]]] Asamblea Legislativa Plurinacional. (2010). _Ley de la Educación N.º 070 «Avelino Siñani - Elizardo Pérez»_.
+- [[[ds1433,3]]] Ministerio de Educación del Estado Plurinacional de Bolivia. (2012). _Decreto Supremo N.º 1433: Reglamento General de Universidades Privadas_.
+
+.Estatuto orgánico institucional
+- [[[upsa-statute,4]]] Universidad Privada de Santa Cruz de la Sierra. _Estatuto Orgánico de la UPSA_.
+
+.Reglamentos internos obligatorios (D.S. 1433, Arts. 8–17)
+- [[[upsa-inst-reg,5]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento Institucional_.
+- [[[upsa-faculty-reg,6]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento de Docencia_. https://acm.upsa.edu.bo/images/upsa-reglamento-de-docencia.pdf
+- [[[upsa-student-reg,7]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento del Estudiante_. https://sobrevirtual.upsa.edu.bo/docs/Reglamento_del_Estudiante.pdf
+- [[[upsa-admin-reg,8]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento de Personal Administrativo_.
+- [[[upsa-research-reg,9]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento de Investigación_.
+- [[[upsa-outreach-reg,10]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento de Interacción Social y Difusión Cultural_.
+- [[[upsa-eval-reg,11]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento de Autoevaluación_.
+- [[[upsa-scholarship-reg,12]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento de Becas_. https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Becas.pdf
+- [[[upsa-graduation-reg,13]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento de Graduación_. https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Graduacion.pdf
+
+.Reglamentos y normativas específicas complementarias
+- [[[upsa-internship-reg,14]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento de Pasantía Profesional y Social_. https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Pasantia_Profesional_y_Social.pdf
+- [[[upsa-library-reg,15]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento Interno de Uso de Biblioteca_. https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Interno_Uso_Biblioteca.pdf
+- [[[upsa-admissions-reg,16]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento de Admisiones y Traspasos_.
+- [[[upsa-honors-reg,17]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento de Distinciones y Honores_.
+- [[[upsa-grad-studies-reg,18]]] Universidad Privada de Santa Cruz de la Sierra. _Reglamento de Postgrado_.
+- [[[upsa-ethics-code,19]]] Universidad Privada de Santa Cruz de la Sierra. _Código de Ética y Tribunal de Honor_.
