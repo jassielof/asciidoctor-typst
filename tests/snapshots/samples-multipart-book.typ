@@ -197,11 +197,11 @@ Line two
 ]
 
 #adoc-bibliography[
-== References <_references>
-
 // adoc2typ: custom reference labels are not representable in Hayagriva: dragon (Dragon Book)
+// adoc2typ: the section title "References" is replaced by Typst's generated one
+#[
+#set heading(offset: 1)
 #bibliography(
-  title: none,
   full: true,
   bytes(
     "knuth:\n" +
@@ -215,7 +215,8 @@ Line two
     "    name: \"Aho et al\"\n" +
     "  title: \"Compilers\"\n"
   ),
-)
+) <_references>
+]
 ]
 
 #adoc-index[

@@ -106,7 +106,7 @@ becomes
 ```typst
 Usage in citations @dcm-dev and @doctests.
 
-#bibliography(title: none, full: true, bytes(
+#bibliography(full: true, bytes(
   "dcm-dev:\n" + "  type: misc\n" + "  url: \"https://dcm.dev/\"\n" + …
 ))
 ```
@@ -124,8 +124,12 @@ Usage in citations @dcm-dev and @doctests.
 - **Lost by design** (reported as a comment above `#bibliography`): list captions (Hayagriva has
   no grouping), custom reference labels (`[[[id,label]]]`) and custom citation text
   (`<<id,text>>`).
-- The `[bibliography]` section's own heading is emitted normally, so `title: none` avoids a
-  second one. Style (numeric, author-date, …) is chosen in the template via `#bibliography(style:)`.
+- **The section heading is replaced by Typst's generated bibliography title**, which follows the
+  document language (`:lang:` becomes `set text(lang:)` in the template), e.g. _Bibliografía_. It is
+  emitted at the section's level (`#set heading(offset: …)`), and the section's id is attached to
+  the `#bibliography` call so `<<_references>>` links still work. The AsciiDoc title text is
+  reported in the comment above the call. Style (numeric, author-date, …) is chosen in the template
+  via `#bibliography(style:)`.
 
 ## Known limits
 

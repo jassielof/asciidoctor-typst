@@ -147,11 +147,11 @@ explicit.
 Please refer to the tests README.
 
 #adoc-bibliography[
-== References <_references>
-
 // adoc2typ: list captions are not representable in Hayagriva: Flutter/Dart; Zig; Complexity; Rust; Go
+// adoc2typ: the section title "References" is replaced by Typst's generated one
+#[
+#set heading(offset: 1)
 #bibliography(
-  title: none,
   full: true,
   bytes(
     "dcm-dev:\n" +
@@ -220,7 +220,8 @@ Please refer to the tests README.
     "  title: \"Golangci-lint linter suite\"\n" +
     "  url: \"https://golangci-lint.run/docs/linters/\"\n"
   ),
-)
+) <_references>
+]
 ]
 
 #adoc-acknowledgments[

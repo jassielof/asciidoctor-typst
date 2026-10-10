@@ -309,4 +309,16 @@ describe("bibliography", () => {
     const out = await body("<<a>>s and <<a>>.\n\n" + section("* [[[a]]] Entry."));
     expect(out).toStartWith("#cite(<a>)s and @a.");
   });
+  test("the generated bibliography title replaces the section heading", async () => {
+    const out = await body(":lang: es\n\nSee <<_refs>>.\n\n[bibliography]\n== Refs\n\n* [[[a]]] Entry.");
+    expect(out).not.toContain("= Refs");
+    expect(out).not.toContain("title: none");
+    expect(out).toContain("#link(<_refs>)[Refs]");
+    expect(out).toMatch(/\) <_refs>\n\]$/);
+    expect(out).toContain('the section title "Refs" is replaced');
+  });
+  test("a deeper bibliography keeps its heading level", async () => {
+    const out = await body("== Chapter\n\n=== Sub\n\n[bibliography]\n==== Refs\n\n* [[[a]]] Entry.");
+    expect(out).toContain("#set heading(offset: 2)");
+  });
 });

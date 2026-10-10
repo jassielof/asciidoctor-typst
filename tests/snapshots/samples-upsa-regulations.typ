@@ -33,12 +33,10 @@ A su vez, estos documentos fueron generados a partir de las versiones originales
 - #link("Reglamento interno de uso de biblioteca.pdf")[Reglamento interno de uso de biblioteca].
 
 #adoc-bibliography[
-= Referencias <_referencias>
-
 // adoc2typ: list captions are not representable in Hayagriva: Marco normativo nacional; Estatuto orgánico institucional; Reglamentos internos obligatorios (D.S. 1433, Arts. 8–17); Reglamentos y normativas específicas complementarias
 // adoc2typ: custom reference labels are not representable in Hayagriva: cpe (1), ley070 (2), ds1433 (3), upsa-statute (4), upsa-inst-reg (5), upsa-faculty-reg (6), upsa-student-reg (7), upsa-admin-reg (8), upsa-research-reg (9), upsa-outreach-reg (10), upsa-eval-reg (11), upsa-scholarship-reg (12), upsa-graduation-reg (13), upsa-internship-reg (14), upsa-library-reg (15), upsa-admissions-reg (16), upsa-honors-reg (17), upsa-grad-studies-reg (18), upsa-ethics-code (19)
+// adoc2typ: the section title "Referencias" is replaced by Typst's generated one
 #bibliography(
-  title: none,
   full: true,
   bytes(
     "cpe:\n" +
@@ -146,5 +144,5 @@ A su vez, estos documentos fueron generados a partir de las versiones originales
     "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
     "  title: \"Código de Ética y Tribunal de Honor\"\n"
   ),
-)
+) <_referencias>
 ]

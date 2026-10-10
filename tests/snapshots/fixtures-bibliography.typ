@@ -12,12 +12,10 @@
 Usage in citations @dcm-dev and @doctests, then @apa.
 
 #adoc-bibliography[
-= References <_references>
-
 // adoc2typ: list captions are not representable in Hayagriva: Flutter/Dart; Zig; Books
 // adoc2typ: custom reference labels are not representable in Hayagriva: dcm-dev (flutter-dcm), doc-comments (zig-doc-comments)
+// adoc2typ: the section title "References" is replaced by Typst's generated one
 #bibliography(
-  title: none,
   full: true,
   bytes(
     "dcm-dev:\n" +
@@ -50,5 +48,5 @@ Usage in citations @dcm-dev and @doctests, then @apa.
     "  type: misc\n" +
     "  title: \"An entry without an anchor, still listed\"\n"
   ),
-)
+) <_references>
 ]
