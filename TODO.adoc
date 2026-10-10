@@ -1,8 +1,8 @@
 = TODOs
 
-- [ ] Rename the test folder to tests
-- [ ] Add fixtures and snapshots instead of just samples
-- [ ] AsciiDoc references have a very limited syntax as seen in https://docs.asciidoctor.org/asciidoc/latest/sections/bibliography/ (fetch the documentation and understand its syntax for the section, entries and citations).
+- [x] Rename the test folder to tests
+- [x] Add fixtures and snapshots instead of just samples
+- [x] AsciiDoc references have a very limited syntax as seen in https://docs.asciidoctor.org/asciidoc/latest/sections/bibliography/ (fetch the documentation and understand its syntax for the section, entries and citations).
   Typst has its own bibliography format, called Hayagriva, so we'll preprocess the AsciiDoc bibliography into Hayagriva to our best-effort. For example, let's assume the following AsciiDoc bibliography:
 
 [source,asciidoc]
@@ -55,5 +55,3 @@ Usage in citations @dcm-dev and @doctests.
 ----
 
 The data loss is the custom labels on the entries and the citations as well as caption grouping as there's no equivalent in Hayagriva/Typst. Citation supplements could be used but it's not sematically equivalent to the custom label.
-
-- [ ] 

@@ -18,6 +18,7 @@ AST to Typst; there is no intermediate format (no DocBook, no HTML).
   entity-decoded and escaped for Typst exactly once.
 - `src/emit.ts` – walks the block AST (sections, lists, tables, listings, …) and writes Typst.
 - `src/escape.ts` – Typst escaping (markup, strings, labels, line starts).
+- `src/bibliography.ts` – turns `[bibliography]` sections into Hayagriva (see below).
 - `src/convert.ts` – glue: options, loading, diagnostics, header attributes.
 
 ## Usage
@@ -36,7 +37,7 @@ typst compile --root . out/docent.typ
 | `--strict`                               | Exit non-zero if any warning was reported.                              |
 
 Programmatic use: `await convert(source, options)` / `await convertFile(path, options)` from
-`src/convert.ts` (the Asciidoctor API is async) return `{ typst, diagnostics, document }`.
+`src/convert.ts` (the Asciidoctor API is async) return `{ typst, bibliographies, diagnostics, document }`.
 
 Diagnostics combine Asciidoctor's own warnings (missing includes, undefined attributes,
 unterminated blocks, …) with the converter's (unresolved xrefs, remote images, unsupported
@@ -81,6 +82,51 @@ Every attribute the document or caller set is passed as
 `backend-typst` and **`backend-pdf`** are defined, so `ifdef::backend-pdf[]` blocks written for
 asciidoctor-pdf apply.
 
+## Bibliographies
+
+AsciiDoc has a very small bibliography syntax
+([spec](https://docs.asciidoctor.org/asciidoc/latest/sections/bibliography/)): a section with the
+`bibliography` style, list items starting with a `[[[id]]]` or `[[[id,xreftext]]]` anchor, and
+`<<id>>` citations. Typst uses [Hayagriva](https://github.com/typst/hayagriva), so such a
+section is converted on a best-effort basis:
+
+```asciidoc
+Usage in citations <<dcm-dev>> and <<doctests,customlabeled>>.
+
+[bibliography]
+== References
+
+.Zig
+* [[[dcm-dev,flutter-dcm]]] https://dcm.dev/.
+* [[[doctests]]] Doctests in the Zig documentation — https://ziglang.org/documentation/{zig-version}/#Doctests
+```
+
+becomes
+
+```typst
+Usage in citations @dcm-dev and @doctests.
+
+#bibliography(title: none, full: true, bytes(
+  "dcm-dev:\n" + "  type: misc\n" + "  url: \"https://dcm.dev/\"\n" + …
+))
+```
+
+- The Hayagriva YAML is **embedded as `bytes(...)`**, so the output stays a single, self-contained
+  file with no path to resolve. The YAML is also returned as `ConvertResult.bibliographies`
+  if you would rather write it to a file.
+- Attribute references (`{zig-version}`) are already substituted by Asciidoctor.
+- Fields are inferred from the entry text: `Author. (2009). _Title_. Rest.` gives `author`,
+  `date`, `title` and `note`; `Title — https://…` gives `title` and `url`; a bare URL gives only
+  `url`; anything else keeps its whole text as `title`. Nested list items are appended to `note`.
+  Entries without an anchor are still listed (key `ref-N`).
+- Citations of exported entries become `@key` (or `#cite(<key>)` where the key would run into
+  following text).
+- **Lost by design** (reported as a comment above `#bibliography`): list captions (Hayagriva has
+  no grouping), custom reference labels (`[[[id,label]]]`) and custom citation text
+  (`<<id,text>>`).
+- The `[bibliography]` section's own heading is emitted normally, so `title: none` avoids a
+  second one. Style (numeric, author-date, …) is chosen in the template via `#bibliography(style:)`.
+
 ## Known limits
 
 - `video::`/`audio::` become links; remote images (URLs) become links (Typst cannot fetch).
@@ -99,9 +145,16 @@ asciidoctor-pdf apply.
 ## Development
 
 ```sh
-bun test            # unit tests + compiles both samples with typst (if installed)
-bunx tsc --noEmit   # type-check
+bun test                       # unit tests + snapshots (+ compiles every snapshot with typst)
+UPDATE_SNAPSHOTS=1 bun test    # rewrite snapshots; review the diff before committing
+bun run check                  # typecheck, lint, format check and tests
 ```
 
-Fixtures: `samples/docent.adoc` (single-file book) and `samples/multipart/` (book with parts,
-includes, tables, code with callouts, footnotes, xrefs, …).
+Layout:
+
+- `tests/convert.test.ts` – focused unit tests (escaping, inline, blocks, bibliography, …).
+- `tests/fixtures/*.adoc` – small fixtures, one per feature area (`includes/` holds a multi-file one).
+- `tests/snapshots/` – expected Typst for every fixture and for the samples, plus
+  `*.diagnostics.txt` where a fixture is expected to produce warnings. Each snapshot is also
+  compiled with `typst` to prove it is valid.
+- `samples/` – real-world examples (`docent.adoc`, `upsa-regulations.adoc`, and the multipart book).
