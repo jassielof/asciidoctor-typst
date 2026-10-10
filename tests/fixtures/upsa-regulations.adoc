@@ -1,10 +1,25 @@
 = Reglamentos: Universidad Privada de Santa Cruz de la Sierra
+Kismet Lee
+v3: An icy winter incarnation
 :doctype: book
+:lang: es
+
+[abstract]
+== Abstract
+
+Este repositorio contiene los reglamentos de la Universidad Privada de Santa Cruz de la Sierra, Bolivia.
 
 [abstract]
 --
-Este repositorio contiene los reglamentos de la Universidad Privada de Santa Cruz de la Sierra, Bolivia.
+This article will take you on a wonderful adventure of knowledge.
+
+You'll start with the basics.
+Beyond that, where you go is up to you.
 --
+
+[abstract]
+.Abstract
+Documentation is a distillation of many long adventures.
 
 [colophon]
 == Colofón

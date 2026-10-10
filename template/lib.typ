@@ -1,3 +1,5 @@
+#import "lib/sections.typ": abstract
+
 // adoc2typ template library.
 //
 // The converter emits native Typst for everything Typst can express (headings, lists, term
@@ -31,25 +33,58 @@
   set heading(numbering: if "sectnums" in attributes { "1.1.1" } else { none })
 
   // Title page.
-  align(center + horizon)[
-    #if title != none { text(2.4em, weight: "bold", title) }
-    #if subtitle != none { v(0.4em); text(1.4em, subtitle) }
-    #v(2em)
-    #for a in authors [#a.name \ ]
-    #if "date" in revision { revision.date }
-  ]
-  pagebreak()
+  {
+    set align(horizon + right)
 
-  if "toc" in attributes { outline(); pagebreak() }
+    if title != none { text(2.4em, weight: "bold", title) }
+    if subtitle != none {
+      v(0.4em)
+      text(1.4em, subtitle)
+    }
+    v(2em)
+    for a in authors [#a.name \ ]
+    if "date" in revision { revision.date }
+    pagebreak()
+  }
+
+  if "toc" in attributes {
+    outline()
+    pagebreak()
+  }
 
   // Start every chapter (or part) on a new page.
-  show heading.where(level: if parts { 2 } else { 1 }): it => { pagebreak(weak: true); it }
+  show heading.where(level: if parts { 2 } else { 1 }): it => {
+    pagebreak(weak: true)
+    it
+  }
   if parts {
     show heading.where(level: 1): it => {
       pagebreak(weak: true)
       align(center + horizon, text(2em, it))
     }
   }
+
+  show heading: set text(
+    fill: rgb(186, 57, 37),
+    font: "Reforma 2018",
+    style: "normal",
+  )
+
+  show heading.where(level: 1): set block(
+    spacing: 1.5em,
+    stroke: (
+      top: (
+        thickness: 1pt,
+        paint: rgb("#e7e7e9"),
+      ),
+    ),
+    inset: (
+      top: 1.25em,
+    ),
+    width: 100%,
+  )
+
+  set text(font: "Reforma 1969")
 
   body
 }
@@ -74,7 +109,10 @@
 
   align(center)[
     #if title != none { text(1.8em, weight: "bold", title) }
-    #if subtitle != none { v(0.2em); text(1.2em, subtitle) }
+    #if subtitle != none {
+      v(0.2em)
+      text(1.2em, subtitle)
+    }
     #v(0.6em)
     #for a in authors [#a.name \ ]
     #if "date" in revision { revision.date }
@@ -84,20 +122,13 @@
   body
 }
 
-// ------------------------------------------------------------------ special sections
-
 #let adoc-unnumbered(body) = {
   set heading(numbering: none)
   body
 }
 
-#let adoc-abstract(body) = block(
-  inset: (x: 2em, y: 0.6em),
-  {
-    set text(size: 0.95em)
-    body
-  },
-)
+
+
 #let adoc-preface(body) = adoc-unnumbered(body)
 #let adoc-foreword(body) = adoc-unnumbered(body)
 #let adoc-afterword(body) = adoc-unnumbered(body)
@@ -143,7 +174,10 @@
   fill: luma(245),
   radius: 3pt,
   {
-    if title != none { strong(title); parbreak() }
+    if title != none {
+      strong(title)
+      parbreak()
+    }
     body
   },
 )
@@ -153,14 +187,20 @@
   inset: 0.8em,
   stroke: 0.5pt + luma(180),
   {
-    if title != none { strong(title); parbreak() }
+    if title != none {
+      strong(title)
+      parbreak()
+    }
     body
   },
 )
 
 #let adoc-verse(attribution: none, body) = block(inset: (left: 1.5em), {
   body
-  if attribution != none { parbreak(); align(right, [--- #attribution]) }
+  if attribution != none {
+    parbreak()
+    align(right, [--- #attribution])
+  }
 })
 
 /// Source code with callout markers.
@@ -189,13 +229,15 @@
 #let adoc-role(roles, id: none, body) = body
 
 #let adoc-kbd(..keys) = {
-  let boxes = keys.pos().map(k => box(
-    stroke: 0.5pt + luma(150),
-    inset: (x: 3pt, y: 1.5pt),
-    outset: (y: 1.5pt),
-    radius: 2pt,
-    k,
-  ))
+  let boxes = keys
+    .pos()
+    .map(k => box(
+      stroke: 0.5pt + luma(150),
+      inset: (x: 3pt, y: 1.5pt),
+      outset: (y: 1.5pt),
+      radius: 2pt,
+      k,
+    ))
   boxes.join("+")
 }
 

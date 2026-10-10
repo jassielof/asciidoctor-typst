@@ -1,5 +1,5 @@
 = Nested bibliography
-:lang: es
+:lang: en
 
 Cited as <<no>>s and, at the end of a sentence, <<no>>. Section: <<_referencias>>.
 

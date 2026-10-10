@@ -22,15 +22,20 @@ endif::[]
 :zig-docs: https://ziglang.org/documentation/{zig-version}/
 :zig-stdlib: {zig-docs}std/
 
+[abstract]
+--
+Docent is a code quality linter for Zig, focused on documentation, complexity and style. It's available as a CLI and library.
+--
+
 [dedication]
 = Dedication
 
 To Vivienne.
 
-[abstract]
---
-Docent is a code quality linter for Zig, focused on documentation, complexity and style. It's available as a CLI and library.
---
+[dedication]
+= Another dedication
+
+To Vivienne, truly.
 
 [preface]
 = About this documentation

@@ -10,16 +10,25 @@
   attributes: ("doctype": "book"),
 )
 
-#adoc-abstract[
-Este repositorio contiene los reglamentos de la Universidad Privada de Santa Cruz de la Sierra, Bolivia.
+#abstract(
+  title: [Abstract],
+)[Este repositorio contiene los reglamentos de la Universidad Privada de Santa Cruz de la Sierra, Bolivia.]
+
+#abstract(style: "block")[
+  This article will take you on a wonderful adventure of knowledge.
+
+  You'll start with the basics.
+  Beyond that, where you go is up to you.
 ]
 
+#abstract(style: "block", title: [Abstract])[Documentation is a distillation of many long adventures.]
+
 #adoc-colophon[
-= Colofón <_colofón>
+  = Colofón <_colofón>
 
-Los documentos de este repositorio fueron generados gracias a Typst.
+  Los documentos de este repositorio fueron generados gracias a Typst.
 
-A su vez, estos documentos fueron generados a partir de las versiones originales y oficiales de la universidad, más estos (los generados por Typst) no son oficiales ni reemplazan a los documentos de la universidad, estos documentos son simplemente experimentos y pruebas.
+  A su vez, estos documentos fueron generados a partir de las versiones originales y oficiales de la universidad, más estos (los generados por Typst) no son oficiales ni reemplazan a los documentos de la universidad, estos documentos son simplemente experimentos y pruebas.
 ]
 
 = Reglamentos <_reglamentos>
@@ -33,116 +42,116 @@ A su vez, estos documentos fueron generados a partir de las versiones originales
 - #link("Reglamento interno de uso de biblioteca.pdf")[Reglamento interno de uso de biblioteca].
 
 #adoc-bibliography[
-// adoc2typ: list captions are not representable in Hayagriva: Marco normativo nacional; Estatuto orgánico institucional; Reglamentos internos obligatorios (D.S. 1433, Arts. 8–17); Reglamentos y normativas específicas complementarias
-// adoc2typ: custom reference labels are not representable in Hayagriva: cpe (1), ley070 (2), ds1433 (3), upsa-statute (4), upsa-inst-reg (5), upsa-faculty-reg (6), upsa-student-reg (7), upsa-admin-reg (8), upsa-research-reg (9), upsa-outreach-reg (10), upsa-eval-reg (11), upsa-scholarship-reg (12), upsa-graduation-reg (13), upsa-internship-reg (14), upsa-library-reg (15), upsa-admissions-reg (16), upsa-honors-reg (17), upsa-grad-studies-reg (18), upsa-ethics-code (19)
-// adoc2typ: the section title "Referencias" is replaced by Typst's generated one
-#bibliography(
-  full: true,
-  bytes(
-    "cpe:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Estado Plurinacional de Bolivia\"\n" +
-    "  date: 2009\n" +
-    "  title: \"Constitución Política del Estado\"\n" +
-    "ley070:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Asamblea Legislativa Plurinacional\"\n" +
-    "  date: 2010\n" +
-    "  title: \"Ley de la Educación N.º 070 «Avelino Siñani - Elizardo Pérez»\"\n" +
-    "ds1433:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Ministerio de Educación del Estado Plurinacional de Bolivia\"\n" +
-    "  date: 2012\n" +
-    "  title: \"Decreto Supremo N.º 1433: Reglamento General de Universidades Privadas\"\n" +
-    "upsa-statute:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Estatuto Orgánico de la UPSA\"\n" +
-    "upsa-inst-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento Institucional\"\n" +
-    "upsa-faculty-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento de Docencia\"\n" +
-    "  url: \"https://acm.upsa.edu.bo/images/upsa-reglamento-de-docencia.pdf\"\n" +
-    "upsa-student-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento del Estudiante\"\n" +
-    "  url: \"https://sobrevirtual.upsa.edu.bo/docs/Reglamento_del_Estudiante.pdf\"\n" +
-    "upsa-admin-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento de Personal Administrativo\"\n" +
-    "upsa-research-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento de Investigación\"\n" +
-    "upsa-outreach-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento de Interacción Social y Difusión Cultural\"\n" +
-    "upsa-eval-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento de Autoevaluación\"\n" +
-    "upsa-scholarship-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento de Becas\"\n" +
-    "  url: \"https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Becas.pdf\"\n" +
-    "upsa-graduation-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento de Graduación\"\n" +
-    "  url: \"https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Graduacion.pdf\"\n" +
-    "upsa-internship-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento de Pasantía Profesional y Social\"\n" +
-    "  url: \"https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Pasantia_Profesional_y_Social.pdf\"\n" +
-    "upsa-library-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento Interno de Uso de Biblioteca\"\n" +
-    "  url: \"https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Interno_Uso_Biblioteca.pdf\"\n" +
-    "upsa-admissions-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento de Admisiones y Traspasos\"\n" +
-    "upsa-honors-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento de Distinciones y Honores\"\n" +
-    "upsa-grad-studies-reg:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Reglamento de Postgrado\"\n" +
-    "upsa-ethics-code:\n" +
-    "  type: misc\n" +
-    "  author:\n" +
-    "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n" +
-    "  title: \"Código de Ética y Tribunal de Honor\"\n"
-  ),
-) <_referencias>
+  // adoc2typ: list captions are not representable in Hayagriva: Marco normativo nacional; Estatuto orgánico institucional; Reglamentos internos obligatorios (D.S. 1433, Arts. 8–17); Reglamentos y normativas específicas complementarias
+  // adoc2typ: custom reference labels are not representable in Hayagriva: cpe (1), ley070 (2), ds1433 (3), upsa-statute (4), upsa-inst-reg (5), upsa-faculty-reg (6), upsa-student-reg (7), upsa-admin-reg (8), upsa-research-reg (9), upsa-outreach-reg (10), upsa-eval-reg (11), upsa-scholarship-reg (12), upsa-graduation-reg (13), upsa-internship-reg (14), upsa-library-reg (15), upsa-admissions-reg (16), upsa-honors-reg (17), upsa-grad-studies-reg (18), upsa-ethics-code (19)
+  // adoc2typ: the section title "Referencias" is replaced by Typst's generated one
+  #bibliography(
+    full: true,
+    bytes(
+      "cpe:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Estado Plurinacional de Bolivia\"\n"
+        + "  date: 2009\n"
+        + "  title: \"Constitución Política del Estado\"\n"
+        + "ley070:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Asamblea Legislativa Plurinacional\"\n"
+        + "  date: 2010\n"
+        + "  title: \"Ley de la Educación N.º 070 «Avelino Siñani - Elizardo Pérez»\"\n"
+        + "ds1433:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Ministerio de Educación del Estado Plurinacional de Bolivia\"\n"
+        + "  date: 2012\n"
+        + "  title: \"Decreto Supremo N.º 1433: Reglamento General de Universidades Privadas\"\n"
+        + "upsa-statute:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Estatuto Orgánico de la UPSA\"\n"
+        + "upsa-inst-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento Institucional\"\n"
+        + "upsa-faculty-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento de Docencia\"\n"
+        + "  url: \"https://acm.upsa.edu.bo/images/upsa-reglamento-de-docencia.pdf\"\n"
+        + "upsa-student-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento del Estudiante\"\n"
+        + "  url: \"https://sobrevirtual.upsa.edu.bo/docs/Reglamento_del_Estudiante.pdf\"\n"
+        + "upsa-admin-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento de Personal Administrativo\"\n"
+        + "upsa-research-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento de Investigación\"\n"
+        + "upsa-outreach-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento de Interacción Social y Difusión Cultural\"\n"
+        + "upsa-eval-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento de Autoevaluación\"\n"
+        + "upsa-scholarship-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento de Becas\"\n"
+        + "  url: \"https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Becas.pdf\"\n"
+        + "upsa-graduation-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento de Graduación\"\n"
+        + "  url: \"https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Graduacion.pdf\"\n"
+        + "upsa-internship-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento de Pasantía Profesional y Social\"\n"
+        + "  url: \"https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Pasantia_Profesional_y_Social.pdf\"\n"
+        + "upsa-library-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento Interno de Uso de Biblioteca\"\n"
+        + "  url: \"https://sobrevirtual.upsa.edu.bo/docs/Reglamento_Interno_Uso_Biblioteca.pdf\"\n"
+        + "upsa-admissions-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento de Admisiones y Traspasos\"\n"
+        + "upsa-honors-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento de Distinciones y Honores\"\n"
+        + "upsa-grad-studies-reg:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Reglamento de Postgrado\"\n"
+        + "upsa-ethics-code:\n"
+        + "  type: misc\n"
+        + "  author:\n"
+        + "    name: \"Universidad Privada de Santa Cruz de la Sierra\"\n"
+        + "  title: \"Código de Ética y Tribunal de Honor\"\n",
+    ),
+  ) <_referencias>
 ]
