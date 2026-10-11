@@ -7,36 +7,61 @@ xrefs, callouts, footnotes) are exactly Asciidoctor's. This project only maps As
 AST to Typst; there is no intermediate format (no DocBook, no HTML).
 
 ```
-.adoc ── Asciidoctor (load) ──► AST ──► TypstEmitter ──► .typ  (+ template/lib.typ)
+.adoc ── Asciidoctor (load) ──► AST ──► TypstEmitter ──► .typ  (+ packages/core/template/lib.typ)
                  │                          ▲
                  └─ inline subs ─► TypstInlineConverter (custom "typst" backend)
 ```
 
-- `src/inline.ts` – a custom Asciidoctor converter for the `typst` backend. It handles every
+- `packages/core/src/inline.ts` – a custom Asciidoctor converter for the `typst` backend. It handles every
   _inline_ node (strong, emphasis, links, xrefs, footnotes, images, kbd, …). Its output is
   token-protected so Typst code survives Asciidoctor's later substitution passes and text is
   entity-decoded and escaped for Typst exactly once.
-- `src/emit.ts` – walks the block AST (sections, lists, tables, listings, …) and writes Typst.
-- `src/escape.ts` – Typst escaping (markup, strings, labels, line starts).
-- `src/bibliography.ts` – turns `[bibliography]` sections into Hayagriva (see below).
-- `src/convert.ts` – glue: options, loading, diagnostics, header attributes.
+- `packages/core/src/emit.ts` – walks the block AST (sections, lists, tables, listings, …) and writes Typst.
+- `packages/core/src/escape.ts` – Typst escaping (markup, strings, labels, line starts).
+- `packages/core/src/bibliography.ts` – turns `[bibliography]` sections into Hayagriva (see below).
+- `packages/core/src/convert.ts` – glue: options, loading, diagnostics, header attributes.
+
+## Project layout
+
+A Bun workspace with two packages:
+
+```
+packages/
+├── core/   asciidoctor-typst: the library (conversion, bundle writer, in-process compilation),
+│           the Typst template (template/), fonts (assets/) and the tests (tests/)
+└── cli/    adoc2typ: the command line, built on the library with commander
+```
+
+The CLI only parses arguments and calls the library; anything else (including the compile step) lives in `asciidoctor-typst`, so it can be used from code without a shell.
 
 ## Usage
 
+By default the document is compiled to PDF in-process with [typst.ts](https://github.com/Myriad-Dreamin/typst.ts); the Typst CLI is not needed.
+
 ```sh
-bun src/index.ts tests/fixtures/docent.adoc -o out/docent
-typst compile --root . out/docent/main.typ
+bun packages/cli/src/index.ts packages/core/tests/fixtures/docent.adoc              # writes docent.pdf next to it
+bun packages/cli/src/index.ts packages/core/tests/fixtures/docent.adoc -o out/docent.pdf
 ```
 
-| Option                                   | Meaning                                                            |
-| ---------------------------------------- | ------------------------------------------------------------------ |
-| `-o, --output <dir>`                     | Directory to write the Typst project to (see below).               |
-| `-a, --attribute name[=value]` / `name!` | Set / unset a document attribute (repeatable).                     |
-| `-d, --doctype book\|article`            | Force the doctype.                                                 |
-| `--lib <path>`                           | Import path of the template library (default `/template/lib.typ`). |
-| `--strict`                               | Exit non-zero if any warning was reported.                         |
+To control how Typst compiles (project root, font paths, system fonts, PDF standard, …), write the Typst source with `--typst` and compile it with your own Typst CLI:
 
-The output is a **directory** that Typst can compile on its own:
+```sh
+bun packages/cli/src/index.ts packages/core/tests/fixtures/docent.adoc --typst -o out/docent
+typst compile --root packages/core out/docent/main.typ
+```
+
+| Option                                   | Meaning                                                                                   |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `-o, --output <path>`                    | The PDF to write (default: `<input>.pdf`). With `--typst`: the directory for the project. |
+| `--typst`                                | Write the Typst source instead of compiling it.                                           |
+| `-a, --attribute name[=value]` / `name!` | Set / unset a document attribute (repeatable).                                            |
+| `-d, --doctype book\|article`            | Force the doctype.                                                                        |
+| `--lib <path>`                           | Import path of the template library (default `/template/lib.typ`).                        |
+| `--strict`                               | Exit non-zero if any warning was reported.                                                |
+
+In-process compilation has fixed settings: the fonts in `packages/core/assets/fonts` plus typst.ts' default font assets (text, CJK, emoji, math), and the template library resolved as `/template/...`. Packages (`@preview/...`) and the default fonts are downloaded on first use; packages are cached in `~/.cache/adoc2typ/packages`.
+
+With `--typst` the output is a **directory** that Typst can compile on its own:
 
 ```
 out/docent/
@@ -45,11 +70,11 @@ out/docent/
 └── images/             every local image the document uses, copied
 ```
 
-Image paths in `main.typ` are relative to it. Without `-o`, `main.typ` is printed to stdout, which
-only works for documents that need no other file.
+Image paths in `main.typ` are relative to it. With `--typst` and without `-o`, `main.typ` is printed to stdout, which only works for documents that need no other file.
 
-Programmatic use: `await convert(source, options)` / `await convertFile(path, options)` from
-`src/convert.ts` (the Asciidoctor API is async) return
+Programmatic use of the compile step: `await compileToPdf(result, { lib })` (from `asciidoctor-typst`) takes a conversion result and returns the PDF bytes; it throws a `CompileError` (`messages`) when Typst rejects the document.
+
+Programmatic use: `await convert(source, options)` / `await convertFile(path, options)` from `asciidoctor-typst` (the Asciidoctor API is async) return
 `{ typst, files, bibliographies, diagnostics, document }`. `files` is the bundle: entries with
 `content` are generated, entries with `source` are copied (`writeFiles(dir, files)` does both).
 
@@ -61,37 +86,37 @@ directory as the include jail (`baseDir` option to change it).
 ## Output contract
 
 Native Typst is used wherever Typst can express the construct. Everything else calls an
-`adoc-*` function from `template/lib.typ`, which is where styling lives.
+`adoc-*` function from `packages/core/template/lib.typ`, which is where styling lives.
 
-| AsciiDoc                                                     | Typst                                                                                                              |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| document header                                              | `#show: adoc-book.with(title:, subtitle:, authors:, revision:, logo:, parts:, attributes:)` (or `adoc-article`)    |
-| `[abstract]` section / block / titled paragraph              | `#abstract(title: [...])[...]` / `#abstract(style: "block")[...]` / `#abstract(style: "block", title: [...])[...]` |
-| `[colophon]`                                                 | `#colophon(title: [...])[...]` (`level:` only when not 1); the function draws the heading                          |
-| `[bibliography]`                                             | a bare `#bibliography(full: true, "bibliography.yaml")` (no wrapper, no label)                                     |
-| sections                                                     | `=` headings. In a book with parts: part `=`, chapter `==`, section `===` (`parts: true`)                          |
-| `[preface]`, `[appendix]`, `[glossary]`, …                   | `#adoc-preface[ … ]`, `#adoc-appendix[ … ]`, … around the heading and its content                                  |
-| `[abstract]`, `[partintro]`                                  | `#adoc-abstract[…]`, `#adoc-partintro[…]`                                                                          |
-| `[discrete]` headings                                        | `#heading(outlined: false, numbering: none)`                                                                       |
-| `*`, `.` lists, checklists                                   | `-`, `+` lists (`#set enum(numbering:)` for `a.`/`i)` styles)                                                      |
-| description lists                                            | `/ term: …`                                                                                                        |
-| callout lists                                                | `#adoc-callout-list(( … ))`                                                                                        |
-| source/listing/literal                                       | `#raw(block: true, lang:, "…")` (one string, so indentation can never corrupt it)                                  |
-| callouts in source                                           | `#adoc-callout-code(lang:, callouts: ((line, n), …), "…")`                                                         |
-| tables                                                       | `#table(columns:, table.header(…), …)`, `table.cell(colspan:, rowspan:, align:)`                                   |
-| titled table/image/listing                                   | `#figure(…, caption: […])`                                                                                         |
-| `image::` / `image:`                                         | `#image(…)` / `#box(image(…))`                                                                                     |
-| `NOTE:` etc.                                                 | `#adoc-admonition("note", title: […])[…]`                                                                          |
-| quote / verse / sidebar / example                            | `#quote(block: true, attribution:)`, `#adoc-verse`, `#adoc-sidebar`, `#adoc-example`                               |
-| block titles on other blocks                                 | `#adoc-block-title[…]`                                                                                             |
-| `<<id>>`, `xref:`                                            | `#link(<id>)[title]` (title resolved by Asciidoctor)                                                               |
-| `footnote:` / `footnote:id[]`                                | `#footnote[…]<fn-id>` / `#footnote(<fn-id>)`                                                                       |
-| anchors, `[[[bib]]]`                                         | `#metadata(none)<id>`                                                                                              |
-| `kbd:`, `btn:`, `menu:` (need `:experimental:`), index terms | `#adoc-kbd`, `#adoc-btn`, `#adoc-menu`, `#adoc-indexterm`                                                          |
-| `stem:[]`, `latexmath:[]` / `[stem]`, `[latexmath]` blocks   | `#mi("<raw LaTeX>")` / `#mitex("<raw LaTeX>")` (the mitex package, called directly)                                |
-| roles `[.role]#x#`                                           | `#adoc-role(("role",))[x]` (`underline`/`line-through` map to Typst natively)                                      |
-| `toc::[]`, `<<<`, `'''`                                      | `#outline()`, `#pagebreak()`, `#line(length: 100%)`                                                                |
-| `[typst]` + `++++`                                           | emitted verbatim (raw Typst)                                                                                       |
+| AsciiDoc                                                     | Typst                                                                                                                         |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| document header                                              | `#show: adoc-book.with(title:, subtitle:, authors:, revision:, logo:, parts:, attributes:)` (or `adoc-article`)               |
+| `[abstract]` section / block / titled paragraph              | `#abstract(title: [...])[...]` / `#abstract(style: "block")[...]` / `#abstract(style: "block", title: [...])[...]`            |
+| `[colophon]`                                                 | `#colophon(title: [...])[...]` (`level:` only when not 1); the function draws the heading                                     |
+| `[bibliography]`                                             | a bare `#bibliography(full: true, "bibliography.yaml")` (no wrapper, no label)                                                |
+| sections                                                     | `=` headings. In a book with parts: part `=`, chapter `==`, section `===` (`parts: true`)                                     |
+| `[preface]`, `[appendix]`, `[glossary]`, …                   | `#adoc-preface[ … ]`, `#adoc-appendix[ … ]`, … around the heading and its content                                             |
+| `[abstract]`, `[partintro]`                                  | `#adoc-abstract[…]`, `#adoc-partintro[…]`                                                                                     |
+| `[discrete]` headings                                        | `#heading(outlined: false, numbering: none)`                                                                                  |
+| `*`, `.` lists, checklists                                   | `-`, `+` lists (`#set enum(numbering:)` for `a.`/`i)` styles)                                                                 |
+| description lists                                            | `/ term: …`                                                                                                                   |
+| callout lists                                                | `#adoc-callout-list(( … ))`                                                                                                   |
+| source/listing/literal                                       | `#raw(block: true, lang:, "…")` (one string, so indentation can never corrupt it)                                             |
+| callouts in source                                           | `#adoc-callout-code(lang:, callouts: ((line, n), …), "…")`                                                                    |
+| tables                                                       | `#table(columns:, table.header(…), …)`, `table.cell(colspan:, rowspan:, align:)`                                              |
+| titled table/image/listing                                   | `#figure(…, caption: […])`                                                                                                    |
+| `image::` / `image:`                                         | `#image(…)` / `#box(image(…))`                                                                                                |
+| `NOTE:` etc.                                                 | `#adoc-admonition("note", title: […])[…]`                                                                                     |
+| quote / verse / sidebar / example                            | `#quote(block: true, attribution:)`, `#adoc-verse`, `#adoc-sidebar`, `#adoc-example`                                          |
+| block titles on other blocks                                 | `#adoc-block-title[…]`                                                                                                        |
+| `<<id>>`, `xref:`                                            | `#link(<id>)[title]` (title resolved by Asciidoctor)                                                                          |
+| `footnote:` / `footnote:id[]`                                | `#footnote[…]<fn-id>` / `#footnote(<fn-id>)`                                                                                  |
+| anchors, `[[[bib]]]`                                         | `#metadata(none)<id>`                                                                                                         |
+| `kbd:`, `btn:`, `menu:` (need `:experimental:`), index terms | `#adoc-kbd`, `#adoc-btn`, `#adoc-menu`, `#adoc-indexterm`                                                                     |
+| `stem:[]`, `latexmath:[]` / `[stem]`, `[latexmath]` blocks   | `#mi("<raw LaTeX>")` / `#mitex("<raw LaTeX>")` (the mitex package, called directly); with `:stem: typstmath`: `$x$` / `$ x $` |
+| roles `[.role]#x#`                                           | `#adoc-role(("role",))[x]` (`underline`/`line-through` map to Typst natively)                                                 |
+| `toc::[]`, `<<<`, `'''`                                      | `#outline()`, `#pagebreak()`, `#line(length: 100%)`                                                                           |
+| `[typst]` + `++++`                                           | emitted verbatim (raw Typst)                                                                                                  |
 
 Every attribute the document or caller set is passed as `attributes: ("toc": "", "sectnums": "", …)`, so the template can react to `:toc:`, `:sectnums:`, custom attributes, etc. Asciidoctor's built-ins are filtered out, and so is anything that already has its own argument (`revision`, `logo`, `lang`) or means nothing for Typst (below).
 `backend-typst` and **`backend-pdf`** are defined, so `ifdef::backend-pdf[]` blocks written for
@@ -101,11 +126,15 @@ asciidoctor-pdf apply.
 
 Only **LaTeX** math is supported, rendered by the [mitex](https://typst.app/universe/package/mitex) package: the formula is passed as the raw TeX, exactly as written, to mitex's own functions: `#mi("\\frac{a}{b}")` inline and `#mitex("…")` for blocks. The template library imports them, so there is no wrapper. `stem:[]` and `[stem]` mean LaTeX when `:stem:` is not set.
 
-AsciiMath is **refused**: Typst has no AsciiMath and mitex only reads LaTeX, so `asciimath:[]`, `[asciimath]` blocks and `:stem: asciimath` (or an empty `:stem:`, which means AsciiMath in Asciidoctor) make the conversion fail with an error instead of producing a formula that cannot render. Typst's own math syntax is not supported either, since it would need non-standard AsciiDoc.
+AsciiMath is **refused**: Typst has no AsciiMath and mitex only reads LaTeX, so `asciimath:[]`, `[asciimath]` blocks and `:stem: asciimath` (or an empty `:stem:`, which means AsciiMath in Asciidoctor) make the conversion fail with an error instead of producing a formula that cannot render. Typst's own math syntax is available only through non-standard AsciiDoc, below.
+
+### Typst math (non-standard)
+
+AsciiDoc only knows `latexmath` and `asciimath`. For documents written for this converter only, `:stem: typstmath` (or `-a stem=typstmath`) makes `stem:[]` and `[stem]` blocks Typst math: `stem:[sum_(i=1)^n i]` becomes `$sum_(i=1)^n i$` and a `[stem]` block `$ … $`. Explicit `latexmath` stays LaTeX; the explicit `asciimath` forms are read as Typst math too, since Asciidoctor cannot tell them apart. Because this is not AsciiDoc, other processors will not render such a document, and the conversion always reports a warning (`:stem: typstmath is not standard AsciiDoc`), which `--strict` turns into a failure.
 
 ## Ignored attributes
 
-Typst highlights code itself and the math is always LaTeX, so `:source-highlighter:` and `:stem:` mean nothing: they are not passed to the template and not stored in a state. An attribute that is **not referenced** anywhere is reported (`attribute :stem: is ignored (math is always LaTeX)`); one that **is** referenced (`{source-highlighter}`) is simply replaced by its value, as Asciidoctor does, with no warning.
+Typst highlights code itself and the math syntax is chosen by the converter, so `:source-highlighter:` and `:stem:` mean nothing: they are not passed to the template and not stored in a state. An attribute that is **not referenced** anywhere is reported (`attribute :stem: is ignored (math is always LaTeX)`); one that **is** referenced (`{source-highlighter}`) is simply replaced by its value, as Asciidoctor does, with no warning.
 
 ## Authors, revision, language and the title page
 
@@ -228,7 +257,7 @@ doctests:
 - Inline passthroughs (`+++…+++`, `pass:[]`) arrive as plain text (Asciidoctor restores them
   before converters see them), so they are escaped rather than emitted as raw Typst. Use a
   `[typst]` `++++` block for raw Typst. HTML block passthroughs are dropped with a warning.
-- Math is LaTeX only (see Math); AsciiMath and Typst math are not supported.
+- Math is LaTeX (or, non-standard, Typst math with `:stem: typstmath`); AsciiMath is not supported.
 - Description list styles (`[horizontal]`, `[qanda]`) and list numbering styles beyond
   arabic/alpha/roman are not mapped.
 - Typst merges adjacent lists of the same kind; the emitter inserts an inert
@@ -246,17 +275,19 @@ bun run check                  # typecheck, lint, format check and tests
 
 Layout:
 
-- `tests/fixtures/` – the AsciiDoc inputs: small ones per feature area (`lists.adoc`, `tables.adoc`,
+- `packages/core/tests/fixtures/` – the AsciiDoc inputs: small ones per feature area (`lists.adoc`, `tables.adoc`,
   `bibliography.adoc`, …), a multi-file one (`includes/main.adoc`) and two real-world documents
   (`docent.adoc`, `upsa-regulations.adoc`).
-- `tests/snapshots/` – the expected Typst for every fixture (`<fixture>.typ`), plus
-  `<fixture>.diagnostics.txt` where it is expected to warn. Each snapshot is also compiled with
+- `packages/core/tests/snapshots/` – the expected output of every fixture (`<fixture>/main.typ`, the YAML), plus
+  `diagnostics.txt` where it is expected to warn. Each snapshot is also compiled with
   `typst` to prove it is valid.
-- `tests/snapshots.test.ts` – compares every fixture with its snapshot and compiles it.
-- `tests/convert.test.ts` – behavioural assertions, also driven by the fixtures, so a failure points
+- `packages/core/tests/snapshots.test.ts` – compares every fixture with its snapshot and compiles it.
+- `packages/core/tests/convert.test.ts` – behavioural assertions, also driven by the fixtures, so a failure points
   at one behaviour instead of a whole-file diff.
-- `tests/escape.test.ts` – pure unit tests of the escaping helpers.
-- `tests/fixtures.ts` – fixture discovery and conversion shared by the test files.
+- `packages/core/tests/escape.test.ts` – pure unit tests of the escaping helpers.
+- `packages/core/tests/compile.test.ts` – in-process PDF compilation (needs network on first use).
+- `packages/cli/tests/cli.test.ts` – the command line.
+- `packages/core/tests/fixtures.ts` – fixture discovery and conversion shared by the test files.
 
-To add a case: drop an `.adoc` in `tests/fixtures/`, run `UPDATE_SNAPSHOTS=1 bun test`, review the new
+To add a case: drop an `.adoc` in `packages/core/tests/fixtures/`, run `UPDATE_SNAPSHOTS=1 bun test`, review the new
 snapshot, and add assertions to `convert.test.ts` if it exercises new behaviour.
