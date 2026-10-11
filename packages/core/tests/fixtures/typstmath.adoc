@@ -1,0 +1,9 @@
+= Typst math
+:stem: typstmath
+
+Inline stem:[x^2 + sum_(i=1)^n i] sits in the text.
+
+[stem]
+++++
+integral_0^1 x dif x = 1 / 2
+++++

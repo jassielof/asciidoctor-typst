@@ -6,6 +6,7 @@ import { AssetBundle, type OutputFile } from "./assets.ts";
 import type { AdocDocument, AdocNode } from "./ast.ts";
 import { referencedAttributes, resolveLiterals, withInfoReferences } from "./info-refs.ts";
 import { TypstEmitter } from "./emit.ts";
+import { TYPST_MATH, usesTypstMath } from "./math.ts";
 import { ASCIIMATH_UNSUPPORTED, UnsupportedSyntaxError } from "./errors.ts";
 import { registerTypstConverter, setInlineHooks } from "./inline.ts";
 
@@ -144,9 +145,19 @@ async function convertDocument(source: string, options: ConvertOptions): Promise
   // Attributes that mean nothing for Typst are neither passed nor stored. One that is referenced in the document is still replaced by its value (Asciidoctor does that), so it is only reported when nothing uses it.
   const referenced = referencedAttributes();
   for (const [name, reason] of Object.entries(IGNORED_ATTRIBUTES)) {
+    // `:stem: typstmath` is not ignored: it selects the math syntax, and is reported below.
+    if (name === "stem" && usesTypstMath(doc)) continue;
     if (name in headerAttributes && !referenced.has(name)) {
       diagnostics.push({ level: "warning", message: `attribute :${name}: is ignored (${reason})`, file });
     }
+  }
+
+  if (usesTypstMath(doc)) {
+    diagnostics.push({
+      level: "warning",
+      message: `:stem: ${TYPST_MATH} is not standard AsciiDoc (AsciiDoc only has latexmath and asciimath): stem content is read as Typst math, and other AsciiDoc processors will not render it`,
+      file,
+    });
   }
 
   // Asciidoctor's own diagnostics (missing includes, unterminated blocks, ...).

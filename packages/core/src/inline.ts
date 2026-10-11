@@ -7,6 +7,7 @@ import { ConverterBase } from "@asciidoctor/core";
 import type { AdocNode } from "./ast.ts";
 import { literalFor, PLACEHOLDER, referenceCode } from "./info-refs.ts";
 import { ASCIIMATH_UNSUPPORTED, UnsupportedSyntaxError } from "./errors.ts";
+import { usesTypstMath } from "./math.ts";
 import { decodeEntities, escapeMarkup, labelName, str } from "./escape.ts";
 
 // Tokens are shaped like HTML tags (`<` + private-use char + index + private-use char + `>`) on purpose: Asciidoctor strips tags when it derives section ids from converted titles, so ids come out the same as with any other backend. Real `<` in text is always `&lt;` by then.
@@ -342,6 +343,10 @@ export class TypstInlineConverter extends ConverterBase {
       case "single":
         return `&#8216;${text}&#8217;`;
       case "asciimath":
+        if (usesTypstMath(node)) {
+          const math = plainText(text).trim();
+          return atom(`$${math}$`, { plain: math });
+        }
         throw new UnsupportedSyntaxError(ASCIIMATH_UNSUPPORTED, {
           file: node.parent?.getFile(),
           line: node.parent?.getLineNumber(),

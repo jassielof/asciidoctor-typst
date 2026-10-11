@@ -14,6 +14,7 @@ import {
 } from "./ast.ts";
 import type { AssetBundle, OutputFile } from "./assets.ts";
 import { ASCIIMATH_UNSUPPORTED, UnsupportedSyntaxError } from "./errors.ts";
+import { usesTypstMath } from "./math.ts";
 import { setDocumentInfo, type AuthorField } from "./info-refs.ts";
 import { buildBibSection, toHayagriva, type BibSection } from "./bibliography.ts";
 import { dimension, extractCallouts, plainText, renderInline, setCitable, setUnlabelled } from "./inline.ts";
@@ -442,6 +443,9 @@ export class TypstEmitter {
         return text;
       }
       case "stem": {
+        if (usesTypstMath(b) && !/latex/i.test(String(b.style))) {
+          return `$ ${plainText(String(await contentText(b))).trim()} $`;
+        }
         if (!/latex/i.test(String(b.style))) {
           throw new UnsupportedSyntaxError(ASCIIMATH_UNSUPPORTED, {
             file: b.getFile(),

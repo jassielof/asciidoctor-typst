@@ -175,6 +175,23 @@ describe("inline", () => {
     expect(typst).toContain('#mi("x")');
     expect(diagnostics).toEqual([]);
   });
+  test(":stem: typstmath reads stem content as Typst math and warns that it is non-standard", async () => {
+    const { convert } = await import("../src/convert.ts");
+    const { typst, diagnostics } = await convert(
+      "= T\n:stem: typstmath\n\nInline stem:[sum_(i=1)^n i].\n\n[stem]\n++++\nx / 2\n++++\n",
+    );
+    expect(typst).toContain("Inline $sum_(i=1)^n i$.");
+    expect(typst).toContain("$ x / 2 $");
+    expect(typst).not.toContain("#mi(");
+    expect(diagnostics.map((d) => d.message)).toEqual([
+      expect.stringContaining(":stem: typstmath is not standard AsciiDoc"),
+    ]);
+  });
+  test("typstmath is chosen with the stem attribute only; latexmath stays LaTeX", async () => {
+    const { convert } = await import("../src/convert.ts");
+    const { typst } = await convert("= T\n:stem: typstmath\n\nlatexmath:[\\frac{a}{b}]\n");
+    expect(typst).toContain('#mi("\\\\frac{a}{b}")');
+  });
 });
 
 describe("sections", () => {

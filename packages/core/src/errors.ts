@@ -10,4 +10,4 @@ export class UnsupportedSyntaxError extends Error {
 
 /** AsciiMath has no Typst equivalent and mitex only reads LaTeX, so it is refused rather than guessed at. */
 export const ASCIIMATH_UNSUPPORTED =
-  "AsciiMath is not supported, only LaTeX math is: write the formula as LaTeX (`latexmath:[...]`, `[latexmath]` or `[stem]` with `:stem: latexmath`)";
+  "AsciiMath is not supported, only LaTeX math is: write the formula as LaTeX (`latexmath:[...]`, `[latexmath]` or `[stem]` with `:stem: latexmath`), or, outside standard AsciiDoc, Typst math with `:stem: typstmath`";

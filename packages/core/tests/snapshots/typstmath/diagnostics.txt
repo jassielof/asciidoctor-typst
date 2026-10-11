@@ -1,0 +1,1 @@
+warning: :stem: typstmath is not standard AsciiDoc (AsciiDoc only has latexmath and asciimath): stem content is read as Typst math, and other AsciiDoc processors will not render it (typstmath.adoc)
