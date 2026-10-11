@@ -302,3 +302,7 @@ Layout:
 
 To add a case: drop an `.adoc` in `packages/core/tests/fixtures/`, run `UPDATE_SNAPSHOTS=1 bun test`, review the new
 snapshot, and add assertions to `convert.test.ts` if it exercises new behaviour.
+
+## License
+
+[Mozilla Public License 2.0](LICENSE.txt).

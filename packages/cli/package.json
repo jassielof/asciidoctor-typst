@@ -2,6 +2,7 @@
   "name": "@asciidoctor-typst/cli",
   "description": "Command line interface of asciidoctor-typst.",
   "version": "0.1.0",
+  "license": "MPL-2.0",
   "type": "module",
   "private": true,
   "dependencies": {

@@ -2,6 +2,7 @@
   "name": "asciidoctor-typst",
   "description": "Converts AsciiDoc to Typst, and compiles it to PDF, using the official Asciidoctor parser.",
   "version": "0.1.0",
+  "license": "MPL-2.0",
   "type": "module",
   "repository": "github:jassielof/asciidoctor-typst",
   "bin": {
