@@ -13,21 +13,21 @@
 #abstract(style: "block")[An abstract.]
 
 #adoc-dedication[
-  == For someone <_for_someone>
+== For someone <_for_someone>
 
-  To someone.
+To someone.
 ]
 
 #adoc-preface[
-  == Preface <_preface>
+== Preface <_preface>
 
-  A preface.
+A preface.
 ]
 
 = Part One <_part_one>
 
 #adoc-partintro[
-  Introduction to part one.
+Introduction to part one.
 ]
 
 == First chapter <_first_chapter>
@@ -37,6 +37,18 @@ Chapter text.
 === A section <_a_section>
 
 Section text.
+
+==== A subsection <_a_subsection>
+
+Subsection text.
+
+===== A subsubsection <_a_subsubsection>
+
+Subsubsection text.
+
+====== A paragraph <_a_paragraph>
+
+Paragraph text.
 
 == Second chapter <_second_chapter>
 
@@ -49,15 +61,15 @@ More text.
 Text.
 
 #adoc-appendix[
-  == Extra material <_extra_material>
+== Extra material <_extra_material>
 
-  Appendix text.
+Appendix text.
 ]
 
 #adoc-glossary[
-  == Glossary <_glossary>
+== Glossary <_glossary>
 
-  / term: definition
+/ term: definition
 ]
 
 #colophon(title: [Colophon], level: 2)[Made with Typst.]

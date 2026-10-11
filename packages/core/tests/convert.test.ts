@@ -730,6 +730,9 @@ describe("heading numbering in a book with parts", () => {
         "Part One": "I",
         "First chapter": "1",
         "A section": "1.1",
+        "A subsection": "1.1.1",
+        "A subsubsection": "1.1.1.1",
+        "A paragraph": "1.1.1.1.1",
         "Second chapter": "2",
         "Part Two": "II",
         // Not "2.1": the chapter count does not restart with the part.
