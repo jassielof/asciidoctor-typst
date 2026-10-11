@@ -1,7 +1,15 @@
 {
-  "name": "asciidoctor-typst-workspace",
-  "private": true,
+  "name": "asciidoctor-typst",
+  "description": "Converts AsciiDoc to Typst, and compiles it to PDF, using the official Asciidoctor parser.",
+  "version": "0.1.0",
   "type": "module",
+  "repository": "github:jassielof/asciidoctor-typst",
+  "bin": {
+    "asciidoctor-typst": "./packages/cli/src/index.ts"
+  },
+  "exports": {
+    ".": "./packages/core/src/index.ts"
+  },
   "workspaces": [
     "packages/*"
   ],
@@ -14,6 +22,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "bun run typecheck && bun run lint && bun run format:check && bun test"
+  },
+  "dependencies": {
+    "@asciidoctor/core": "^4.1.1",
+    "@myriaddreamin/typst-ts-web-compiler": "^0.7.0",
+    "@myriaddreamin/typst.ts": "^0.7.0",
+    "commander": "^14.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

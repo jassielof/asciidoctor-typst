@@ -21,32 +21,43 @@ AST to Typst; there is no intermediate format (no DocBook, no HTML).
 - `packages/core/src/bibliography.ts` – turns `[bibliography]` sections into Hayagriva (see below).
 - `packages/core/src/convert.ts` – glue: options, loading, diagnostics, header attributes.
 
+## Installation
+
+The package is not published to npm; install it straight from the repository (it needs [Bun](https://bun.sh)):
+
+```sh
+bun add -g github:jassielof/asciidoctor-typst   # the asciidoctor-typst command, globally
+bun add github:jassielof/asciidoctor-typst      # or as a library dependency of a project
+```
+
+Both give the `asciidoctor-typst` command (`bunx asciidoctor-typst doc.adoc` works too) and `import { convert, compileToPdf } from "asciidoctor-typst"`. A tag or commit can be pinned with `github:jassielof/asciidoctor-typst#v0.1.0`.
+
 ## Project layout
 
-A Bun workspace with two packages:
+One installable package, `asciidoctor-typst` (the root), made of two workspace packages:
 
 ```
 packages/
-├── core/   asciidoctor-typst: the library (conversion, bundle writer, in-process compilation),
+├── core/   @asciidoctor-typst/core: the library (conversion, bundle writer, in-process compilation),
 │           the Typst template (template/), fonts (assets/) and the tests (tests/)
-└── cli/    adoc2typ: the command line, built on the library with commander
+└── cli/    @asciidoctor-typst/cli: the command line, built on the library with commander
 ```
 
-The CLI only parses arguments and calls the library; anything else (including the compile step) lives in `asciidoctor-typst`, so it can be used from code without a shell.
+The root `package.json` exposes the library as the package's entry point and the CLI as its `asciidoctor-typst` binary, and lists their runtime dependencies, because a git install does not install the workspaces of a dependency. The CLI only parses arguments and calls the library; anything else (including the compile step) lives in `core`, so it can be used from code without a shell.
 
 ## Usage
 
 By default the document is compiled to PDF in-process with [typst.ts](https://github.com/Myriad-Dreamin/typst.ts); the Typst CLI is not needed.
 
 ```sh
-bun packages/cli/src/index.ts packages/core/tests/fixtures/docent.adoc              # writes docent.pdf next to it
-bun packages/cli/src/index.ts packages/core/tests/fixtures/docent.adoc -o out/docent.pdf
+asciidoctor-typst packages/core/tests/fixtures/docent.adoc              # writes docent.pdf next to it
+asciidoctor-typst packages/core/tests/fixtures/docent.adoc -o out/docent.pdf
 ```
 
 To control how Typst compiles (project root, font paths, system fonts, PDF standard, …), write the Typst source with `--typst` and compile it with your own Typst CLI:
 
 ```sh
-bun packages/cli/src/index.ts packages/core/tests/fixtures/docent.adoc --typst -o out/docent
+asciidoctor-typst packages/core/tests/fixtures/docent.adoc --typst -o out/docent
 typst compile --root packages/core out/docent/main.typ
 ```
 
@@ -59,7 +70,7 @@ typst compile --root packages/core out/docent/main.typ
 | `--lib <path>`                           | Import path of the template library (default `/template/lib.typ`).                        |
 | `--strict`                               | Exit non-zero if any warning was reported.                                                |
 
-In-process compilation has fixed settings: the fonts in `packages/core/assets/fonts` plus typst.ts' default font assets (text, CJK, emoji, math), and the template library resolved as `/template/...`. Packages (`@preview/...`) and the default fonts are downloaded on first use; packages are cached in `~/.cache/adoc2typ/packages`.
+In-process compilation has fixed settings: the fonts in `packages/core/assets/fonts` plus typst.ts' default font assets (text, CJK, emoji, math), and the template library resolved as `/template/...`. Packages (`@preview/...`) and the default fonts are downloaded on first use; packages are cached in `~/.cache/asciidoctor-typst/packages`.
 
 With `--typst` the output is a **directory** that Typst can compile on its own:
 

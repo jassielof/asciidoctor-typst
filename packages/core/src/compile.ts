@@ -62,7 +62,7 @@ function untar(gz: Uint8Array): Map<string, Uint8Array> {
 function cacheFile(name: string, version: string): string {
   return join(
     process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"),
-    "adoc2typ",
+    "asciidoctor-typst",
     "packages",
     `${name}-${version}.tar.gz`,
   );

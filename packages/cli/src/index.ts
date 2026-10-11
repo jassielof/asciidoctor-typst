@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-/** adoc2typ command line interface. */
+/** asciidoctor-typst command line interface. */
 import { Command, CommanderError, InvalidArgumentError, Option } from "commander";
 import { writeFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
-import { compileToPdf, CompileError, convertFile, DEFAULT_LIB, writeFiles } from "asciidoctor-typst";
-import pkg from "../package.json" with { type: "json" };
+import { compileToPdf, CompileError, convertFile, DEFAULT_LIB, writeFiles } from "../../core/src/index.ts";
+import pkg from "../../../package.json" with { type: "json" };
 
 type Attributes = Record<string, string | null>;
 
@@ -27,7 +27,7 @@ function collectAttribute(value: string, previous: Attributes): Attributes {
 }
 
 export function createProgram(onResult: (code: number) => void = () => {}): Command {
-  return new Command("adoc2typ")
+  return new Command("asciidoctor-typst")
     .description(
       "Compiles an AsciiDoc document to PDF with Typst. With --typst it only writes the Typst source, to compile with your own Typst CLI (custom root, fonts, PDF standard, ...).",
     )
@@ -91,7 +91,7 @@ export async function run(argv: string[]): Promise<number> {
     await program.parseAsync(argv, { from: "user" });
   } catch (e) {
     if (e instanceof CommanderError) return e.exitCode;
-    console.error(`adoc2typ: ${(e as Error).message}`);
+    console.error(`asciidoctor-typst: ${(e as Error).message}`);
     return 2;
   }
   return status;

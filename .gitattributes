@@ -1,1 +1,4 @@
 * text=auto eol=lf
+
+# Vendored fonts, excluded from language statistics
+packages/core/assets/fonts/** linguist-vendored

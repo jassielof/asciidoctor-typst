@@ -6,7 +6,7 @@ import { run } from "../src/index.ts";
 
 let dir: string;
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "adoc2typ-"));
+  dir = mkdtempSync(join(tmpdir(), "asciidoctor-typst-"));
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -33,7 +33,7 @@ async function cli(...argv: string[]) {
   }
 }
 
-describe("adoc2typ", () => {
+describe("asciidoctor-typst", () => {
   test("--typst without -o prints main.typ", async () => {
     const { status, stdout } = await cli(document("= T\n\nHello.\n"), "--typst");
     expect(status).toBe(0);

@@ -12,7 +12,7 @@
 #import "lib/document-info.typ" as document-info
 #import "lib/document-info.typ": document-doctype, document-lang
 
-// adoc2typ template library.
+// asciidoctor-typst template library.
 //
 // The converter emits native Typst for everything Typst can express (headings, lists, term lists, tables, figures, links, footnotes, quotes, raw blocks) and calls the `adoc-*` functions below for AsciiDoc concepts that have no Typst equivalent. Everything here is a plain, unstyled default: restyle freely, the converter only relies on the signatures.
 

@@ -4,6 +4,12 @@
   "workspaces": {
     "": {
       "name": "asciidoctor2typst",
+      "dependencies": {
+        "@asciidoctor/core": "^4.1.1",
+        "@myriaddreamin/typst-ts-web-compiler": "^0.7.0",
+        "@myriaddreamin/typst.ts": "^0.7.0",
+        "commander": "^14.0.0",
+      },
       "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@types/bun": "^1",
@@ -15,18 +21,15 @@
       },
     },
     "packages/cli": {
-      "name": "adoc2typ",
+      "name": "@asciidoctor-typst/cli",
       "version": "0.1.0",
-      "bin": {
-        "adoc2typ": "./src/index.ts",
-      },
       "dependencies": {
-        "asciidoctor-typst": "workspace:*",
+        "@asciidoctor-typst/core": "workspace:*",
         "commander": "^14.0.0",
       },
     },
     "packages/core": {
-      "name": "asciidoctor-typst",
+      "name": "@asciidoctor-typst/core",
       "version": "0.1.0",
       "dependencies": {
         "@asciidoctor/core": "^4.1.1",
@@ -36,6 +39,10 @@
     },
   },
   "packages": {
+    "@asciidoctor-typst/cli": ["@asciidoctor-typst/cli@workspace:packages/cli"],
+
+    "@asciidoctor-typst/core": ["@asciidoctor-typst/core@workspace:packages/core"],
+
     "@asciidoctor/core": ["@asciidoctor/core@4.1.1", "", { "peerDependencies": { "highlight.js": "^11.0.0" }, "optionalPeers": ["highlight.js"] }, "sha512-kwynyx6FXXi985Q9tfIPUitZ/2vzISYmcUVVZXkSamwD91I5nL7TJt33HXjnBYwfzugLu36RZuhNA/DB4fogEA=="],
 
     "@cacheable/memory": ["@cacheable/memory@2.2.0", "", { "dependencies": { "@cacheable/utils": "^2.5.0", "@keyv/bigmap": "^1.3.1", "hookified": "^1.15.1", "keyv": "^5.6.0" } }, "sha512-CTLKqLItRCEixEAewD3/j9DB3/o96gpTPD4eJ1v+DGOlxZRZncRQkGYqqnAGCscYd6RNeXfGeiuCphsPtqyIfQ=="],
@@ -110,11 +117,7 @@
 
     "acorn-jsx": ["acorn-jsx@5.3.2", "", { "peerDependencies": { "acorn": "^6.0.0 || ^7.0.0 || ^8.0.0" } }, "sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ=="],
 
-    "adoc2typ": ["adoc2typ@workspace:packages/cli"],
-
     "ajv": ["ajv@6.15.0", "", { "dependencies": { "fast-deep-equal": "^3.1.1", "fast-json-stable-stringify": "^2.0.0", "json-schema-traverse": "^0.4.1", "uri-js": "^4.2.2" } }, "sha512-fgFx7Hfoq60ytK2c7DhnF8jIvzYgOMxfugjLOSMHjLIPgenqa7S7oaagATUq99mV6IYvN2tRmC0wnTYX6iPbMw=="],
-
-    "asciidoctor-typst": ["asciidoctor-typst@workspace:packages/core"],
 
     "balanced-match": ["balanced-match@4.0.4", "", {}, "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA=="],
 

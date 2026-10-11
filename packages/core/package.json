@@ -1,5 +1,5 @@
 {
-  "name": "asciidoctor-typst",
+  "name": "@asciidoctor-typst/core",
   "description": "Converts AsciiDoc to Typst, and compiles it to PDF, using the official Asciidoctor parser.",
   "version": "0.1.0",
   "type": "module",
