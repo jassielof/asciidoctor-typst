@@ -1,0 +1,14 @@
+{
+  "name": "adoc2typ",
+  "description": "Command line interface of asciidoctor-typst.",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "adoc2typ": "./src/index.ts"
+  },
+  "dependencies": {
+    "asciidoctor-typst": "workspace:*",
+    "commander": "^14.0.0"
+  }
+}
