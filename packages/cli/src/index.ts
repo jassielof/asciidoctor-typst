@@ -74,10 +74,13 @@ async function convertAction(input: string, options: Options): Promise<number> {
     }
   } else if (options.output) {
     writeFiles(options.output, result.files);
-  } else if (result.files.length > 1) {
-    const extra = result.files.filter((f) => f.path !== "main.typ").map((f) => f.path);
-    throw new Error(`the document needs more than main.typ (${extra.join(", ")}); pass -o <dir>`);
   } else {
+    // The bundled template does not count: it is not part of what stdout can carry.
+    const extra = result.files
+      .filter((f) => f.path !== "main.typ" && !f.path.startsWith("template/"))
+      .map((f) => f.path);
+    if (extra.length > 0)
+      throw new Error(`the document needs more than main.typ (${extra.join(", ")}); pass -o <dir>`);
     process.stdout.write(result.typst);
   }
   return options.strict && result.diagnostics.length > 0 ? 1 : 0;

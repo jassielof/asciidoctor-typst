@@ -20,7 +20,7 @@ import { buildBibSection, toHayagriva, type BibSection } from "./bibliography.ts
 import { dimension, extractCallouts, plainText, renderInline, setCitable, setUnlabelled } from "./inline.ts";
 
 export interface EmitOptions {
-  /** Import path of the template library, e.g. `/template/lib.typ`. */
+  /** Import path of the template library, e.g. `template/lib.typ`. */
   lib: string;
   doctype: "book" | "article";
   /** Header attributes passed to the template. */

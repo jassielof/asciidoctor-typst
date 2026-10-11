@@ -6,6 +6,7 @@ import { AssetBundle, type OutputFile } from "./assets.ts";
 import type { AdocDocument, AdocNode } from "./ast.ts";
 import { referencedAttributes, resolveLiterals, withInfoReferences } from "./info-refs.ts";
 import { TypstEmitter } from "./emit.ts";
+import { templateFiles } from "./template.ts";
 import { TYPST_MATH, usesTypstMath } from "./math.ts";
 import { ASCIIMATH_UNSUPPORTED, UnsupportedSyntaxError } from "./errors.ts";
 import { registerTypstConverter, setInlineHooks } from "./inline.ts";
@@ -46,7 +47,8 @@ export interface ConvertResult {
   document: AdocDocument;
 }
 
-export const DEFAULT_LIB = "/template/lib.typ";
+/** Import path of the template library: the copy that is bundled next to `main.typ`. */
+export const DEFAULT_LIB = "template/lib.typ";
 export const MAIN_FILE = "main.typ";
 
 /** Attributes with no meaning for Typst, and why. They are never passed to the template. */
@@ -173,7 +175,14 @@ async function convertDocument(source: string, options: ConvertOptions): Promise
     });
   }
 
-  const files: OutputFile[] = [{ path: MAIN_FILE, content: typst }, ...emitter.files, ...assets.files];
+  // The bundled template is only needed when the document imports it; another `lib` is the caller's to provide.
+  const lib = options.lib ?? DEFAULT_LIB;
+  const files: OutputFile[] = [
+    { path: MAIN_FILE, content: typst },
+    ...emitter.files,
+    ...assets.files,
+    ...(lib === DEFAULT_LIB ? templateFiles() : []),
+  ];
   return { typst, files, bibliographies, diagnostics, document: doc };
 }
 

@@ -39,7 +39,7 @@ export function fixturePath(name: string): string {
 
 /** Converts a fixture the way the snapshots are produced. */
 export function convertFixture(name: string, options: ConvertOptions = {}): Promise<ConvertResult> {
-  return convertFile(fixturePath(name), { lib: "/template/lib.typ", ...options });
+  return convertFile(fixturePath(name), options);
 }
 
 /** The generated document without its `#import`/`#show` header. */

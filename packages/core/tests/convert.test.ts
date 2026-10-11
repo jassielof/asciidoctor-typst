@@ -636,13 +636,22 @@ describe("upsa-regulations: authorship, revision and title page", () => {
       '#abstract(style: "block", title: [Abstract])[Documentation is a distillation of many long adventures.]',
     );
   });
-  test("the bundle is main.typ, one bibliography file and the images", async () => {
+  test("the bundle is main.typ, one bibliography file, the images and the template", async () => {
     const result = await convertFixture("upsa-regulations");
-    expect(result.files.map((f) => f.path)).toEqual([
+    const paths = result.files.map((f) => f.path);
+    expect(paths.filter((p) => !p.startsWith("template/"))).toEqual([
       "main.typ",
       "bibliography.yaml",
       "images/upsa-cross-green.svg",
     ]);
+    expect(paths).toContain("template/lib.typ");
+    expect(paths).toContain("template/lib/title-page.typ");
+    expect(result.typst).toContain('#import "template/lib.typ": *');
+  });
+  test("a custom lib is imported as given and the template is not bundled", async () => {
+    const result = await convertFixture("article", { lib: "my/lib.typ" });
+    expect(result.files.map((f) => f.path)).toEqual(["main.typ"]);
+    expect(result.typst).toContain('#import "my/lib.typ": *');
   });
   test("the bibliography is a file; captions and labels survive as YAML comments", async () => {
     const result = await convertFixture("upsa-regulations");
@@ -705,18 +714,7 @@ describe("heading numbering in a book with parts", () => {
     writeFileSync(join(dir, "main.typ"), probe);
     const r = spawnSync(
       "typst",
-      [
-        "query",
-        "--root",
-        root,
-        join(dir, "main.typ"),
-        "<numbers>",
-        "--field",
-        "value",
-        "--one",
-        "--format",
-        "json",
-      ],
+      ["query", join(dir, "main.typ"), "<numbers>", "--field", "value", "--one", "--format", "json"],
       { encoding: "utf8" },
     );
     expect(r.status).toBe(0);

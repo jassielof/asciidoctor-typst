@@ -9,7 +9,6 @@ import { gunzipSync } from "node:zlib";
 import type { TypstSnippet } from "@myriaddreamin/typst.ts/contrib/snippet";
 import { DEFAULT_LIB, type ConvertResult } from "./convert.ts";
 
-const TEMPLATE_DIR = fileURLToPath(new URL("../template", import.meta.url));
 const FONTS_DIR = fileURLToPath(new URL("../assets/fonts", import.meta.url));
 const FONT_FILE = /\.(otf|ttf|otc|ttc)$/i;
 const PACKAGE_REF = /@preview\/([a-z0-9_-]+):(\d+\.\d+\.\d+)/g;
@@ -124,19 +123,13 @@ async function typst(): Promise<Typst> {
   return instance;
 }
 
-/** Files of the template library the document imports, as `[virtual path, bytes]`. */
+/** Files of a custom template library the document imports, as `[virtual path, bytes]`. */
 function libraryFiles(lib: string): [string, Uint8Array][] {
-  if (lib.startsWith("@")) return [];
-  let directory: string;
-  let virtual: string;
-  if (lib === DEFAULT_LIB) {
-    directory = TEMPLATE_DIR;
-    virtual = "/template";
-  } else {
-    const path = lib.startsWith("/") ? lib : `/${lib}`;
-    virtual = dirname(path);
-    directory = resolve(process.cwd(), "." + virtual);
-  }
+  // The default library is part of the bundle; a package is resolved by Typst.
+  if (lib === DEFAULT_LIB || lib.startsWith("@")) return [];
+  const path = lib.startsWith("/") ? lib : `/${lib}`;
+  const virtual = dirname(path);
+  const directory = resolve(process.cwd(), "." + virtual);
   return walk(directory)
     .filter((p) => p.endsWith(".typ"))
     .map((p) => [
@@ -149,7 +142,7 @@ function libraryFiles(lib: string): [string, Uint8Array][] {
 export async function compileToPdf(result: ConvertResult, options: CompileOptions = {}): Promise<Uint8Array> {
   const lib = options.lib ?? DEFAULT_LIB;
   const library = libraryFiles(lib);
-  if (!lib.startsWith("@") && library.length === 0)
+  if (lib !== DEFAULT_LIB && !lib.startsWith("@") && library.length === 0)
     throw new CompileError([`error: template library not found: ${lib}`]);
   const files: [string, Uint8Array][] = [
     ...library,

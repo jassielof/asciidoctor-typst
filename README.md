@@ -7,7 +7,7 @@ xrefs, callouts, footnotes) are exactly Asciidoctor's. This project only maps As
 AST to Typst; there is no intermediate format (no DocBook, no HTML).
 
 ```
-.adoc ── Asciidoctor (load) ──► AST ──► TypstEmitter ──► .typ  (+ packages/core/template/lib.typ)
+.adoc ── Asciidoctor (load) ──► AST ──► TypstEmitter ──► .typ  (+ the bundled packages/core/template)
                  │                          ▲
                  └─ inline subs ─► TypstInlineConverter (custom "typst" backend)
 ```
@@ -58,30 +58,31 @@ To control how Typst compiles (project root, font paths, system fonts, PDF stand
 
 ```sh
 asciidoctor-typst packages/core/tests/fixtures/docent.adoc --typst -o out/docent
-typst compile --root packages/core out/docent/main.typ
+typst compile out/docent/main.typ
 ```
 
-| Option                                   | Meaning                                                                                   |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `-o, --output <path>`                    | The PDF to write (default: `<input>.pdf`). With `--typst`: the directory for the project. |
-| `--typst`                                | Write the Typst source instead of compiling it.                                           |
-| `-a, --attribute name[=value]` / `name!` | Set / unset a document attribute (repeatable).                                            |
-| `-d, --doctype book\|article`            | Force the doctype.                                                                        |
-| `--lib <path>`                           | Import path of the template library (default `/template/lib.typ`).                        |
-| `--strict`                               | Exit non-zero if any warning was reported.                                                |
+| Option                                   | Meaning                                                                                                                  |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `-o, --output <path>`                    | The PDF to write (default: `<input>.pdf`). With `--typst`: the directory for the project.                                |
+| `--typst`                                | Write the Typst source instead of compiling it.                                                                          |
+| `-a, --attribute name[=value]` / `name!` | Set / unset a document attribute (repeatable).                                                                           |
+| `-d, --doctype book\|article`            | Force the doctype.                                                                                                       |
+| `--lib <path>`                           | Import path of the template library (default `template/lib.typ`, the copy that is bundled). Another path is not bundled. |
+| `--strict`                               | Exit non-zero if any warning was reported.                                                                               |
 
-In-process compilation has fixed settings: the fonts in `packages/core/assets/fonts` plus typst.ts' default font assets (text, CJK, emoji, math), and the template library resolved as `/template/...`. Packages (`@preview/...`) and the default fonts are downloaded on first use; packages are cached in `~/.cache/asciidoctor-typst/packages`.
+In-process compilation has fixed settings: the fonts in `packages/core/assets/fonts` plus typst.ts' default font assets (text, CJK, emoji, math), and the bundled template library. Packages (`@preview/...`) and the default fonts are downloaded on first use; packages are cached in `~/.cache/asciidoctor-typst/packages`.
 
 With `--typst` the output is a **directory** that Typst can compile on its own:
 
 ```
 out/docent/
-├── main.typ            the document (imports the template library)
+├── main.typ            the document (imports template/lib.typ)
+├── template/           the Typst template library (lib.typ and lib/*.typ), copied from the package
 ├── bibliography.yaml   Hayagriva YAML, one file per [bibliography] section
 └── images/             every local image the document uses, copied
 ```
 
-Image paths in `main.typ` are relative to it. With `--typst` and without `-o`, `main.typ` is printed to stdout, which only works for documents that need no other file.
+The template is copied into the bundle and imported by a relative path, so the directory compiles on its own with `typst compile main.typ`, with no package to publish and no `--root`; editing the copy restyles that document. The fonts the template names (Reforma) are not copied: point Typst at them with `--font-path packages/core/assets/fonts`. Image paths in `main.typ` are relative to it. With `--typst` and without `-o`, `main.typ` is printed to stdout, which only works for documents that need no other file.
 
 Programmatic use of the compile step: `await compileToPdf(result, { lib })` (from `asciidoctor-typst`) takes a conversion result and returns the PDF bytes; it throws a `CompileError` (`messages`) when Typst rejects the document.
 
