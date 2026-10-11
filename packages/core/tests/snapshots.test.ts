@@ -6,9 +6,19 @@
  */
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 import { writeFiles } from "../src/assets.ts";
+import { TEMPLATE_PREFIX } from "../src/template.ts";
 import { convertFixture, formatDiagnostics, listFixtures, root, snapshotsDir } from "./fixtures.ts";
 
 const update = process.env.UPDATE_SNAPSHOTS === "1";
@@ -47,6 +57,14 @@ describe("snapshots", () => {
           mkdirSync(dirname(join(dir, path)), { recursive: true });
           writeFileSync(join(dir, path), content);
         }
+        // The copied assets are part of the snapshot too: without them the stored `main.typ` does not compile on its own. The template is the exception: it is the same in every bundle and lives in `packages/core/template`.
+        for (const file of result.files) {
+          if (file.source === undefined || file.path.startsWith(TEMPLATE_PREFIX)) continue;
+          mkdirSync(dirname(join(dir, file.path)), { recursive: true });
+          copyFileSync(file.source, join(dir, file.path));
+        }
+        // A link instead of a copy, so a snapshot can be compiled in place without inflating the repository.
+        symlinkSync(relative(dir, resolve(root, "template")), join(dir, "template"), "dir");
         return;
       }
 
@@ -55,6 +73,14 @@ describe("snapshots", () => {
         .filter((f) => /\.(typ|ya?ml|txt)$/.test(f))
         .sort();
       expect(stored).toEqual([...expected.keys()].sort());
+      for (const file of result.files) {
+        if (file.source === undefined || file.path.startsWith(TEMPLATE_PREFIX)) continue;
+        if (!existsSync(join(dir, file.path))) {
+          throw new Error(
+            `${f.name}: asset missing from the snapshot: ${relative(root, join(dir, file.path))} (UPDATE_SNAPSHOTS=1)`,
+          );
+        }
+      }
       for (const [path, content] of expected) {
         if (!existsSync(join(dir, path))) {
           throw new Error(`${f.name}: no snapshot ${relative(root, join(dir, path))} (UPDATE_SNAPSHOTS=1)`);
@@ -71,17 +97,13 @@ describe("bundles compile with typst", () => {
       f.name,
       async () => {
         const result = await convertFixture(f.name);
-        // Inside the repository, so the template's root-relative import resolves.
+        // The bundle carries the template, so it compiles from anywhere.
         const out = join(root, "out", "snapshots", f.name);
         rmSync(out, { recursive: true, force: true });
         writeFiles(out, result.files);
-        const r = spawnSync(
-          "typst",
-          ["compile", "--root", root, join(out, "main.typ"), join(out, "main.pdf")],
-          {
-            encoding: "utf8",
-          },
-        );
+        const r = spawnSync("typst", ["compile", join(out, "main.typ"), join(out, "main.pdf")], {
+          encoding: "utf8",
+        });
         expect(r.stderr).not.toContain("error");
         expect(r.status).toBe(0);
       },
