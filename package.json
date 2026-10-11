@@ -1,10 +1,12 @@
 {
-  "name": "adoc2typ",
-  "module": "src/index.ts",
-  "type": "module",
+  "name": "asciidoctor-typst-workspace",
   "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "convert": "bun src/index.ts",
+    "convert": "bun packages/cli/src/index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -21,8 +23,5 @@
     "prettier": "^3.9.10",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.1"
-  },
-  "dependencies": {
-    "@asciidoctor/core": "^4.1.1"
   }
 }

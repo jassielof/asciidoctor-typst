@@ -3,6 +3,6 @@
     "tinymist.syntaxOnly": "auto",
     "tinymist.preview.partialRendering": true,
     "tinymist.fontPaths": [
-        "${workspaceFolder}/assets/fonts"
+        "${workspaceFolder}/packages/core/assets/fonts"
     ]
 }

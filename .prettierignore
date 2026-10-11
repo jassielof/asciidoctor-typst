@@ -3,9 +3,9 @@ node_modules
 bun.lock
 .vscode
 # Generated Typst and the AsciiDoc inputs they are built from
-tests/fixtures
-tests/snapshots
+packages/core/tests/fixtures
+packages/core/tests/snapshots
 # Vendored fonts and upstream Asciidoctor PDF themes
-assets
+packages/core/assets
 references
 typst-templates

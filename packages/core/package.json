@@ -1,0 +1,15 @@
+{
+  "name": "asciidoctor-typst",
+  "description": "Converts AsciiDoc to Typst, and compiles it to PDF, using the official Asciidoctor parser.",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@asciidoctor/core": "^4.1.1",
+    "@myriaddreamin/typst-ts-web-compiler": "^0.7.0",
+    "@myriaddreamin/typst.ts": "^0.7.0"
+  }
+}
