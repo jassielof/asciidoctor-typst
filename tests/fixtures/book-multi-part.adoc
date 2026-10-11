@@ -30,6 +30,23 @@ Chapter text.
 
 Section text.
 
+==== A subsection
+
+Subsection text.
+
+===== A subsubsection
+
+Subsubsection text.
+
+====== A paragraph
+
+Paragraph text.
+
+// AsciiDoc doesn't have subparagraph in a multi-part book, as the usual hierarchy of a book is: Part > Chapter > Section > ... > Paragraph > ... However, the chapter in a multi-part book basicalle makes as the section in the article, so there's Chapter > Subsection > ..., where the section is omitted.
+// ======= A subparagraph
+
+// Subparagraph text.
+
 == Second chapter
 
 More text.

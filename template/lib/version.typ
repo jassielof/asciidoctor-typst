@@ -7,6 +7,17 @@
 /// - `remark`: a remark about the revision (`revremark`)
 /// - `label`: the text printed before the number (the `version-label` attribute, "Version" by default)
 
+/// The revision of the document, as the dictionary described above. Filled by `adoc-book` / `adoc-article` through `set-revision`, so the template and the document can read it from anywhere. A reference such as `{revnumber}` in the AsciiDoc source becomes `#revision-field("number")`, so changing the revision on the Typst side updates it.
+#let revision = state("revision", (:))
+
+/// Stores the revision. Must be placed in the document (it returns content).
+#let set-revision(value) = revision.update(value)
+
+/// One key of the revision (`"number"`, `"date"`, `"remark"`, `"label"`), or `default`.
+///
+/// Needs a document context to read the state, so it returns content.
+#let revision-field(field, default: none) = context revision.get().at(field, default: default)
+
 /// "Version 1.0, 2026-10-12": the label and number, then the date. `none` when there is neither a number nor a date.
 #let revision-summary(revision, default-label: "Version") = {
   let parts = ()

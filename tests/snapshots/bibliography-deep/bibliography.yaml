@@ -1,0 +1,6 @@
+"no":
+  type: misc
+  title: "Keys YAML would read as booleans are quoted"
+plain:
+  type: misc
+  title: "Gamma et al. Design Patterns. 1994"

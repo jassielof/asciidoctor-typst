@@ -1,0 +1,34 @@
+# Flutter/Dart
+dcm-dev: # AsciiDoc label: flutter-dcm
+  type: misc
+  url: "https://dcm.dev/"
+
+# Zig
+doctests:
+  type: misc
+  title: "Doctests in the Zig documentation"
+  url: "https://ziglang.org/documentation/0.16.0/#Doctests"
+top-level-doc-comments:
+  type: misc
+  title: "Top-level documentation comments in the Zig documentation"
+  url: "https://ziglang.org/documentation/0.16.0/#Top-Level-Doc-Comments"
+doc-comments: # AsciiDoc label: zig-doc-comments
+  type: misc
+  title: "Doc comments in the Zig documentation"
+  url: "https://ziglang.org/documentation/0.16.0/#Doc-Comments"
+
+# Books
+apa:
+  type: misc
+  author:
+    name: "Hunt & Thomas"
+  date: 1999
+  title: "The Pragmatic Programmer"
+  note: "Addison-Wesley"
+nested:
+  type: misc
+  title: "An entry with nested items"
+  note: "Section 2.5: Limiting complexity."
+ref-7:
+  type: misc
+  title: "An entry without an anchor, still listed"

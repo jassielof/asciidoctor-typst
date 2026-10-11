@@ -1,0 +1,1 @@
+warning: attribute :stem: is ignored (math is always LaTeX) (ignored-attributes.adoc)

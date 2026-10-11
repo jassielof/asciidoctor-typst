@@ -1,7 +1,7 @@
 /// https://docs.asciidoctor.org/asciidoc/latest/sections/abstract/
 #let abstract-section(body, title: none) = {
-  // show heading: set text(style: "normal")
-  heading(title)
+  set heading(numbering: none)
+  if title != none { heading(title) }
 
   body
 }
@@ -41,8 +41,19 @@
 }
 
 /// https://docs.asciidoctor.org/asciidoc/latest/sections/colophon/
-#let colophon(body, title: none) = {
-  heading(none)
+///
+/// - `title`: the section title; the heading is drawn here (a special section: not numbered).
+/// - `level`: heading level of the section (2 in a book with parts).
+#let colophon(body, title: none, level: 1) = {
+  set heading(numbering: none)
+  if title != none { heading(title, level: level) }
+
+  body
+}
+
+#let dedication(body, title: none) = {
+  set heading(numbering: none)
+  if title != none { heading(title) }
 
   body
 }

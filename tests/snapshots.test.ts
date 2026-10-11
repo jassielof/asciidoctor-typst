@@ -1,37 +1,32 @@
 /**
- * Snapshot tests: every fixture is converted and compared with the stored Typst in
- * tests/snapshots (plus `<name>.diagnostics.txt` when it is expected to warn). The stored output
- * is then compiled with Typst to prove it is valid.
+ * Snapshot tests. Every fixture is converted and its generated text files (`main.typ`, the Hayagriva YAML, ...) are compared with the stored copies in `tests/snapshots/<fixture>/`; `diagnostics.txt` there records the warnings the fixture is expected to produce. Binary assets (copied images) are not stored: the compile test writes the whole bundle and compiles it with Typst to prove it is valid on its own.
  *
  *   bun test                          compare
  *   UPDATE_SNAPSHOTS=1 bun test       rewrite snapshots (review the diff before committing!)
  */
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
+import { writeFiles } from "../src/assets.ts";
 import { convertFixture, formatDiagnostics, listFixtures, root, snapshotsDir } from "./fixtures.ts";
 
 const update = process.env.UPDATE_SNAPSHOTS === "1";
 const typstAvailable = spawnSync("typst", ["--version"]).status === 0;
 const fixtures = listFixtures();
 
-function readOptional(path: string): string | undefined {
-  return existsSync(path) ? readFileSync(path, "utf8").replace(/\r\n/g, "\n") : undefined;
+const DIAGNOSTICS = "diagnostics.txt";
+
+/** Every file below `dir`, as `/`-separated relative paths. */
+function listFiles(dir: string, prefix = ""): string[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? listFiles(join(dir, e.name), `${prefix}${e.name}/`) : [`${prefix}${e.name}`],
+  );
 }
 
-function compareOrUpdate(path: string, actual: string, label: string): void {
-  if (update) {
-    if (actual === "") rmSync(path, { force: true });
-    else writeFileSync(path, actual);
-    return;
-  }
-  const expected = readOptional(path);
-  if (expected === undefined && actual === "") return;
-  if (expected === undefined) {
-    throw new Error(`${label}: no snapshot at ${relative(root, path)} (run with UPDATE_SNAPSHOTS=1)`);
-  }
-  expect(actual).toBe(expected);
+function read(path: string): string {
+  return readFileSync(path, "utf8").replace(/\r\n/g, "\n");
 }
 
 mkdirSync(snapshotsDir, { recursive: true });
@@ -40,29 +35,53 @@ describe("snapshots", () => {
   for (const f of fixtures) {
     test(f.name, async () => {
       const result = await convertFixture(f.name);
+      const expected = new Map<string, string>();
+      for (const file of result.files) if (file.content !== undefined) expected.set(file.path, file.content);
       const diagnostics = formatDiagnostics(result);
-      compareOrUpdate(join(snapshotsDir, `${f.name}.typ`), result.typst, f.name);
-      compareOrUpdate(
-        join(snapshotsDir, `${f.name}.diagnostics.txt`),
-        diagnostics ? diagnostics + "\n" : "",
-        f.name,
-      );
+      if (diagnostics) expected.set(DIAGNOSTICS, diagnostics + "\n");
+
+      const dir = join(snapshotsDir, f.name);
+      if (update) {
+        rmSync(dir, { recursive: true, force: true });
+        for (const [path, content] of expected) {
+          mkdirSync(dirname(join(dir, path)), { recursive: true });
+          writeFileSync(join(dir, path), content);
+        }
+        return;
+      }
+
+      // Only text files are snapshots; previews of a snapshot in place (a PDF, copied images) are not.
+      const stored = listFiles(dir)
+        .filter((f) => /\.(typ|ya?ml|txt)$/.test(f))
+        .sort();
+      expect(stored).toEqual([...expected.keys()].sort());
+      for (const [path, content] of expected) {
+        if (!existsSync(join(dir, path))) {
+          throw new Error(`${f.name}: no snapshot ${relative(root, join(dir, path))} (UPDATE_SNAPSHOTS=1)`);
+        }
+        expect(content).toBe(read(join(dir, path)));
+      }
     });
   }
 });
 
-describe("snapshots compile with typst", () => {
+describe("bundles compile with typst", () => {
   for (const f of fixtures) {
     test.skipIf(!typstAvailable)(
       f.name,
-      () => {
-        const typ = join(snapshotsDir, `${f.name}.typ`);
-        if (!existsSync(typ)) throw new Error(`missing snapshot ${relative(root, typ)}`);
-        const out = join(root, "out", "snapshots");
-        mkdirSync(out, { recursive: true });
-        const r = spawnSync("typst", ["compile", "--root", root, typ, join(out, `${f.name}.pdf`)], {
-          encoding: "utf8",
-        });
+      async () => {
+        const result = await convertFixture(f.name);
+        // Inside the repository, so the template's root-relative import resolves.
+        const out = join(root, "out", "snapshots", f.name);
+        rmSync(out, { recursive: true, force: true });
+        writeFiles(out, result.files);
+        const r = spawnSync(
+          "typst",
+          ["compile", "--root", root, join(out, "main.typ"), join(out, "main.pdf")],
+          {
+            encoding: "utf8",
+          },
+        );
         expect(r.stderr).not.toContain("error");
         expect(r.status).toBe(0);
       },

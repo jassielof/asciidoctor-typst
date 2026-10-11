@@ -56,7 +56,7 @@ Usage in citations @dcm-dev and @doctests.
 
 The data loss is the custom labels on the entries and the citations as well as caption grouping as there's no equivalent in Hayagriva/Typst. Citation supplements could be used but it's not sematically equivalent to the custom label.
 
-- [ ] Math syntax should be by default LaTeX as Typst can't understand AsciiMath and it has LaTeX plug-ins to support it. The math blocks and inline math should be wrapped around the https://typst.app/universe/package/mitex package, for example:
+- [x] Math syntax should be by default LaTeX as Typst can't understand AsciiMath and it has LaTeX plug-ins to support it. The math blocks and inline math should be wrapped around the https://typst.app/universe/package/mitex package, for example:
 
 [source,typst]
 ----
@@ -94,4 +94,4 @@ We also support text mode (in development):
 `)
 ----
 
-
+- [ ] Typst-produced PDFs should end up being UA-1 compatible.

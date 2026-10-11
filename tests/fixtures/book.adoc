@@ -1,5 +1,6 @@
-= A Book Without Parts
+= A Book
 :doctype: book
+:sectnums:
 
 == Chapter one
 

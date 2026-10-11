@@ -1,0 +1,11 @@
+= Ignored attributes
+:source-highlighter: rouge
+:stem: latexmath
+:kept: this one is passed on
+
+Referenced, so it is replaced by its value: {source-highlighter}.
+
+[source,zig]
+----
+const a = 1;
+----

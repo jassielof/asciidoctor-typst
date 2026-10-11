@@ -1,12 +1,14 @@
 /**
  * Fixture discovery and conversion shared by the test files.
  *
- * A fixture is either `fixtures/<name>.adoc` or a directory `fixtures/<name>/main.adoc`
- * (for multi-file documents). Its expected output lives in `snapshots/<name>.typ`.
+ * A fixture is either `fixtures/<name>.adoc` or a directory `fixtures/<name>/main.adoc` (for multi-file documents). Its expected output is the directory `snapshots/<name>/`.
  */
 import { existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { convertFile, type ConvertOptions, type ConvertResult } from "../src/convert.ts";
+
+// `{docdate}` and friends come from the file modification time unless SOURCE_DATE_EPOCH is set. Midday UTC, so the date is the same in every time zone.
+process.env.SOURCE_DATE_EPOCH ??= "946728000";
 
 export const root = resolve(import.meta.dir, "..");
 export const fixturesDir = join(import.meta.dir, "fixtures");
@@ -35,9 +37,9 @@ export function fixturePath(name: string): string {
   return fixture.source;
 }
 
-/** Converts a fixture the way the snapshots are produced (output next to the snapshots). */
+/** Converts a fixture the way the snapshots are produced. */
 export function convertFixture(name: string, options: ConvertOptions = {}): Promise<ConvertResult> {
-  return convertFile(fixturePath(name), { outputDir: snapshotsDir, lib: "/template/lib.typ", ...options });
+  return convertFile(fixturePath(name), { lib: "/template/lib.typ", ...options });
 }
 
 /** The generated document without its `#import`/`#show` header. */

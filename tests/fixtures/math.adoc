@@ -1,9 +1,14 @@
 = Math
 :stem: latexmath
 
-Inline stem:[x^2 + y^2] and asciimath:[a/b].
+Inline stem:[x^2 + y^2] and latexmath:[\frac{a}{b}].
 
 [stem]
 ++++
 \sum_{i=1}^{n} i = \frac{n(n+1)}{2}
+++++
+
+[latexmath]
+++++
+\int_0^1 x\,dx
 ++++

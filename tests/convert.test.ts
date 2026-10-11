@@ -1,10 +1,12 @@
 /**
- * Behavioural tests. Every test converts a fixture from tests/fixtures (the same ones the
- * snapshots are built from) and asserts on a specific aspect of the result, so a failure points
- * at the behaviour rather than at a whole-file diff.
+ * Behavioural tests. Every test converts a fixture from tests/fixtures (the same ones the snapshots are built from) and asserts on a specific aspect of the result, so a failure points at the behaviour rather than at a whole-file diff.
  */
 import { describe, expect, test } from "bun:test";
-import { bodyOf, convertFixture } from "./fixtures.ts";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { writeFiles } from "../src/assets.ts";
+import { bodyOf, convertFixture, root } from "./fixtures.ts";
 
 async function typst(name: string, options?: Parameters<typeof convertFixture>[1]): Promise<string> {
   return (await convertFixture(name, options)).typst;
@@ -19,8 +21,11 @@ describe("document header (article)", () => {
     const out = await typst("article");
     expect(out).toContain("title: [An Article]");
     expect(out).toContain("subtitle: [With a Subtitle]");
-    expect(out).toContain('authors: ((name: "Jane Doe", email: "jane@example.org"), (name: "Bob Roe"))');
-    expect(out).toContain('revision: (number: "2.1", date: "2026-03-04", remark: "Second draft")');
+    expect(out).toContain('(name: "Jane Doe", email: "jane@example.org"),');
+    expect(out).toContain('(name: "Bob Roe"),');
+    expect(out).toContain(
+      'revision: (\n    number: "2.1",\n    date: "2026-03-04",\n    remark: "Second draft",\n    label: "Version",\n  ),',
+    );
   });
   test("document attributes are passed on, Asciidoctor's built-ins are not", async () => {
     const out = await typst("article");
@@ -32,7 +37,7 @@ describe("document header (article)", () => {
   });
   test("doctype comes from the document and can be forced", async () => {
     expect(await typst("article")).toContain("#show: adoc-article.with(");
-    expect(await typst("book-chapters")).toContain("#show: adoc-book.with(");
+    expect(await typst("book")).toContain("#show: adoc-book.with(");
     expect(await typst("article", { doctype: "book" })).toContain("#show: adoc-book.with(");
   });
 });
@@ -139,20 +144,36 @@ describe("inline", () => {
     expect(out).toContain('#adoc-kbd("Ctrl", "Shift", "N")');
     expect(out).toContain('#adoc-btn("OK")');
     expect(out).toContain('#adoc-menu("File", "Save As")');
-    expect(out).toContain('#adoc-math("asciimath", "x^2")');
+    // `stem:[]` without `:stem:` is LaTeX here, not AsciiMath.
+    expect(out).toContain('#mi("x^2")');
     expect(out).toContain('#adoc-indexterm(("visible",), visible: true)');
     expect(out).toContain('#adoc-indexterm(("hidden", "term"))');
   });
   test("line starts that look like markup are escaped", async () => {
     expect(await typst("inline")).toContain("\\= not a heading\n\\- not a list\n\\+ not a list");
   });
-  test("stem follows the document's :stem: attribute", async () => {
+  test("math is passed as raw LaTeX, inline and as a block", async () => {
     const out = await typst("math");
-    expect(out).toContain('#adoc-math("latexmath", "x^2 + y^2")');
-    expect(out).toContain('#adoc-math("asciimath", "a/b")');
-    expect(out).toContain(
-      '#adoc-math("latexmath", "\\\\sum_{i=1}^{n} i = \\\\frac{n(n+1)}{2}", block: true)',
+    expect(out).toContain('#mi("x^2 + y^2")');
+    expect(out).toContain('#mi("\\\\frac{a}{b}")');
+    expect(out).toContain('#mitex("\\\\sum_{i=1}^{n} i = \\\\frac{n(n+1)}{2}")');
+    expect(out).toContain('#mitex("\\\\int_0^1 x\\\\,dx")');
+  });
+  test("AsciiMath is refused, not converted", async () => {
+    const { convert } = await import("../src/convert.ts");
+    await expect(convert("= T\n\nasciimath:[a/b]\n")).rejects.toThrow(/AsciiMath is not supported/);
+    await expect(convert("= T\n\n[asciimath]\n++++\na/b\n++++\n")).rejects.toThrow(
+      /AsciiMath is not supported/,
     );
+    await expect(convert("= T\n:stem: asciimath\n\ntext\n")).rejects.toThrow(/AsciiMath is not supported/);
+    // An empty `:stem:` means AsciiMath in Asciidoctor.
+    await expect(convert("= T\n:stem:\n\ntext\n")).rejects.toThrow(/AsciiMath is not supported/);
+  });
+  test("an unset :stem: means LaTeX", async () => {
+    const { convert } = await import("../src/convert.ts");
+    const { typst, diagnostics } = await convert("= T\n\nstem:[x]\n");
+    expect(typst).toContain('#mi("x")');
+    expect(diagnostics).toEqual([]);
   });
 });
 
@@ -163,13 +184,13 @@ describe("sections", () => {
     expect(out).toContain("=== Deeper section with an explicit id <explicit-id>");
   });
   test("book without parts: chapters are level 1", async () => {
-    const out = await typst("book-chapters");
+    const out = await typst("book");
     expect(out).toContain("parts: false");
     expect(out).toContain("= Chapter one <_chapter_one>");
     expect(out).toContain("== Section <_section>");
   });
   test("book with parts: everything shifts down one level", async () => {
-    const out = await typst("book-parts");
+    const out = await typst("book-multi-part");
     expect(out).toContain("parts: true");
     expect(out).toContain("= Part One <_part_one>");
     expect(out).toContain("== First chapter <_first_chapter>");
@@ -188,16 +209,21 @@ describe("sections", () => {
     expect(out).toContain("#heading(level: 2, outlined: false, numbering: none)[A discrete heading]");
   });
   test("special sections wrap their heading and content", async () => {
-    const out = await typst("book-parts");
+    const out = await typst("book-multi-part");
     expect(out).toContain("#adoc-preface[\n== Preface <_preface>\n\nA preface.\n]");
     expect(out).toContain("#adoc-appendix[");
     expect(out).toContain("#adoc-glossary[");
-    expect(out).toContain("#adoc-colophon[");
     expect(out).toContain("#adoc-dedication[");
   });
+  test("the colophon uses the template function, which draws its own heading", async () => {
+    const out = await typst("book-multi-part");
+    expect(out).toContain("#colophon(title: [Colophon], level: 2)[Made with Typst.]");
+    expect(out).not.toContain("adoc-colophon");
+    expect(out).not.toContain("<_colophon>");
+  });
   test("abstract and part intro", async () => {
-    const out = await typst("book-parts");
-    expect(out).toContain("#adoc-abstract[\nAn abstract.\n]");
+    const out = await typst("book-multi-part");
+    expect(out).toContain('#abstract(style: "block")[An abstract.]');
     expect(out).toContain("#adoc-partintro[\nIntroduction to part one.\n]");
   });
 });
@@ -267,9 +293,15 @@ describe("blocks", () => {
   test("images: captioned block image and inline image", async () => {
     const out = await typst("blocks");
     expect(out).toContain(
-      '#figure(\n  align(center, image("../fixtures/images/diagram.svg", alt: "A diagram", width: 150pt)),\n  caption: [A captioned image],\n)',
+      '#figure(\n  align(center, image("images/diagram.svg", alt: "A diagram", width: 150pt)),\n  caption: [A captioned image],\n)',
     );
-    expect(out).toContain('#box(image("../fixtures/images/diagram.svg", alt: "icon", width: 12pt))');
+    expect(out).toContain('#box(image("images/diagram.svg", alt: "icon", width: 12pt))');
+  });
+  test("images are bundled once, next to main.typ", async () => {
+    const result = await convertFixture("blocks");
+    const images = result.files.filter((f) => f.path.startsWith("images/"));
+    expect(images.map((f) => f.path)).toEqual(["images/diagram.svg"]);
+    expect(images[0]!.source).toMatch(/fixtures[\\/]images[\\/]diagram\.svg$/);
   });
 });
 
@@ -347,9 +379,13 @@ describe("cross references and footnotes", () => {
 
 describe("bibliography", () => {
   const yaml = async (name: string) => (await convertFixture(name)).bibliographies[0] ?? "";
+  const file = async (name: string, path: string) =>
+    (await convertFixture(name)).files.find((f) => f.path === path)?.content;
 
   test("url-only entry", async () => {
-    expect(await yaml("bibliography")).toContain('dcm-dev:\n  type: misc\n  url: "https://dcm.dev/"\n');
+    expect(await yaml("bibliography")).toContain(
+      'dcm-dev: # AsciiDoc label: flutter-dcm\n  type: misc\n  url: "https://dcm.dev/"\n',
+    );
   });
   test("title and url, with attributes substituted", async () => {
     expect(await yaml("bibliography")).toContain(
@@ -375,6 +411,12 @@ describe("bibliography", () => {
   test("keys YAML would misread are quoted", async () => {
     expect(await yaml("bibliography-deep")).toStartWith('"no":');
   });
+  test("the YAML is a file next to main.typ, referenced by path", async () => {
+    const out = await typst("bibliography");
+    expect(out).toContain('#bibliography(\n  full: true,\n  "bibliography.yaml",\n)');
+    expect(out).not.toContain("bytes(");
+    expect(await file("bibliography", "bibliography.yaml")).toStartWith("# Flutter/Dart\n");
+  });
   test("citations", async () => {
     const out = await typst("bibliography");
     expect(out).toContain("Usage in citations @dcm-dev and @doctests, then @apa.");
@@ -383,38 +425,58 @@ describe("bibliography", () => {
     const out = await typst("bibliography-deep");
     expect(out).toContain("Cited as #cite(<no>)s and, at the end of a sentence, @no. Section:");
   });
-  test("lost information is reported, not silent", async () => {
-    const out = await typst("bibliography");
-    expect(out).toContain(
-      "// adoc2typ: list captions are not representable in Hayagriva: Flutter/Dart; Zig; Books",
-    );
-    expect(out).toContain(
-      "custom reference labels are not representable in Hayagriva: dcm-dev (flutter-dcm), doc-comments (zig-doc-comments)",
-    );
+  test("list captions become YAML comments above their group", async () => {
+    const out = await yaml("bibliography");
+    expect(out).toContain("# Flutter/Dart\ndcm-dev:");
+    expect(out).toContain("\n\n# Zig\ndoctests:");
+    expect(out).toContain("\n\n# Books\napa:");
   });
-  test("Typst's generated title replaces the section heading and keeps the id", async () => {
+  test("custom labels are kept as YAML comments on the entry", async () => {
+    const out = await yaml("bibliography");
+    expect(out).toContain("dcm-dev: # AsciiDoc label: flutter-dcm\n");
+    expect(out).toContain("doc-comments: # AsciiDoc label: zig-doc-comments\n");
+    expect(out).toContain("\ndoctests:\n");
+  });
+  test("only the replaced section title is noted in main.typ", async () => {
+    const out = await typst("bibliography");
+    expect(out).not.toContain("list captions");
+    expect(out).not.toContain("custom reference labels");
+  });
+  test("Typst's generated title replaces the section heading", async () => {
     const out = await typst("bibliography");
     expect(out).not.toContain("= References");
     expect(out).not.toContain("title: none");
-    expect(out).toContain(") <_references>\n]");
     expect(out).toContain('the section title "References" is replaced by Typst\'s generated one');
+  });
+  test("the bibliography is bare: no wrapper function and no label", async () => {
+    const out = await typst("bibliography");
+    expect(out).not.toContain("adoc-bibliography");
+    expect(out).not.toContain("<_references>");
+    expect(out).toMatch(/\)\n$/);
+  });
+  test("a reference to a section without a label is plain text, not a dangling link", async () => {
+    expect(await typst("bibliography-deep")).toContain("Section: Referencias.");
   });
   test("a nested bibliography keeps its heading level", async () => {
     const out = await typst("bibliography-deep");
     expect(out).toContain("#set heading(offset: 2)");
-    expect(out).toContain("#link(<_referencias>)[Referencias]");
+    expect(out).not.toContain("<_referencias>");
   });
   test("the YAML is also returned for callers that want a file", async () => {
     const result = await convertFixture("bibliography");
     expect(result.bibliographies).toHaveLength(1);
-    expect(result.bibliographies[0]).toStartWith("dcm-dev:\n");
+    expect(result.bibliographies[0]).toStartWith("# Flutter/Dart\ndcm-dev:");
   });
 });
 
 describe("real-world documents", () => {
   test("docent: a book with a glossary, nested description lists and a bibliography", async () => {
     const result = await convertFixture("docent");
-    expect(result.diagnostics).toEqual([]);
+    // Only the ignored attributes are reported (see "ignored attributes").
+    expect(result.diagnostics.map((d) => d.message)).toEqual([
+      "attribute :source-highlighter: is ignored (Typst highlights code itself)",
+      "attribute :stem: is ignored (math is always LaTeX)",
+    ]);
     expect(result.typst).toContain("title: [Docent]");
     expect(result.typst).toContain("subtitle: [Code Quality Linter for Zig]");
     expect(result.typst).toContain("/ Module types:\n  / Libraries or modules per-se:");
@@ -426,4 +488,263 @@ describe("real-world documents", () => {
     expect(result.typst).toContain('#link("Reglamento de graduación.pdf")[Reglamento de graduación]');
     expect(result.bibliographies[0]).toContain('author:\n    name: "Estado Plurinacional de Bolivia"');
   });
+});
+
+/**
+ * The UPSA regulations fixture exercises the title page: authors written inline (several, with underscore-joined names and a trailing `;`), revision information from attribute entries, a title logo, the three abstract forms and a bibliography with captions and custom labels.
+ */
+describe("authorship in the template library", () => {
+  const typstAvailable = spawnSync("typst", ["--version"]).status === 0;
+
+  /** Evaluates a Typst expression with `lib/authorship.typ` in scope and returns it as JSON. */
+  function evaluate(expression: string): unknown {
+    const dir = join(root, "out", "unit");
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, "authorship.typ");
+    writeFileSync(file, `#import "/template/lib/authorship.typ": *\n#metadata(${expression}) <result>\n`);
+    const r = spawnSync(
+      "typst",
+      ["query", "--root", root, file, "<result>", "--field", "value", "--one", "--format", "json"],
+      { encoding: "utf8" },
+    );
+    expect(r.status).toBe(0);
+    return JSON.parse(r.stdout);
+  }
+
+  test.skipIf(!typstAvailable)("derives first, last name and initials like AsciiDoc", () => {
+    // `_` joins the words of one name.
+    expect(evaluate('parse-author((name: "Jassiel Ovando_F.", email: "j@x.org"))')).toEqual({
+      name: "Jassiel Ovando F.",
+      email: "j@x.org",
+      firstname: "Jassiel",
+      lastname: "Ovando F.",
+      initials: "JO",
+    });
+    expect(evaluate('parse-author((name: "Vivienne Y."))')).toEqual({
+      name: "Vivienne Y.",
+      firstname: "Vivienne",
+      lastname: "Y.",
+      initials: "VY",
+    });
+  });
+  test.skipIf(!typstAvailable)("three names give a middle name; one name gives only a first name", () => {
+    expect(evaluate('parse-author((name: "Ana María García"))')).toEqual({
+      name: "Ana María García",
+      firstname: "Ana",
+      middlename: "María",
+      lastname: "García",
+      initials: "AMG",
+    });
+    expect(evaluate('parse-author((name: "Madonna"))')).toEqual({
+      name: "Madonna",
+      firstname: "Madonna",
+      initials: "M",
+    });
+  });
+  test.skipIf(!typstAvailable)("more than three words is kept whole as the first name", () => {
+    expect(evaluate('parse-author((name: "Ana María de la Cruz"))')).toEqual({
+      name: "Ana María de la Cruz",
+      firstname: "Ana María de la Cruz",
+      initials: "A",
+    });
+  });
+  test.skipIf(!typstAvailable)("explicit keys win over derived ones", () => {
+    const author = evaluate('parse-author((name: "Jane Doe", lastname: "Smith"))') as Record<string, string>;
+    expect(author.lastname).toBe("Smith");
+    expect(author.firstname).toBe("Jane");
+  });
+});
+
+describe("upsa-regulations: authorship, revision and title page", () => {
+  test("authors carry only the name as written and the email", async () => {
+    const out = await typst("upsa-regulations");
+    // `Ovando_F.` is one name: underscores join words, so the last name is "Ovando F.".
+    expect(out).toContain('(name: "Jassiel Ovando_F.", email: "jassielovando@protonmail.com"),');
+    // An author without an email, and a trailing `;` on the line, are fine.
+    expect(out).toContain('(name: "Vivienne Y."),');
+    expect(out.match(/^ {4}\(name: /gm)).toHaveLength(2);
+    // First, middle and last name and the initials are derived by the library, not passed.
+    expect(out).not.toContain("firstname:");
+    expect(out).not.toContain("lastname:");
+    expect(out).not.toContain("initials:");
+  });
+  test("author references in the body are lookups into the authors state, not values", async () => {
+    const out = await typst("upsa-regulations");
+    // {authorinitials_1}, {lastname_1}, {lastname_2}
+    expect(out).toContain(
+      '#author-field(field: "initials"), #author-field(field: "lastname"), #author-field(n: 2, field: "lastname")',
+    );
+    // Editing an author in Typst must reach every reference, so no value is frozen into the text.
+    expect(out).not.toContain("JO, Ovando F., Y.");
+    expect(out).not.toContain("{authorinitials_1}");
+  });
+  test("aggregate references and escapes", async () => {
+    const { convert } = await import("../src/convert.ts");
+    const { typst } = await convert(
+      "= T\nA One; B Two\n\nAll: {authors}. Count: {authorcount}. Literal: \\{lastname_1}. Own: {mine}.\n",
+    );
+    expect(typst).toContain("All: #author-names(). Count: #author-count(). Literal: {lastname\\_1}.");
+  });
+  test("a reference inside a string cannot be a lookup and gets the current value", async () => {
+    const { convert } = await import("../src/convert.ts");
+    const { typst } = await convert("= T\nJane Doe <jane@example.org>\n:copyright: (c) {author}\n\ntext\n");
+    expect(typst).toContain('"copyright": "(c) Jane Doe"');
+  });
+  test("a single author given by attributes is read the same way", async () => {
+    const { convert } = await import("../src/convert.ts");
+    const result = await convert(
+      "= Title\n:author: Jane Doe\n:email: jane@example.org\n:doctype: book\n\ntext\n",
+    );
+    expect(result.typst).toContain('(name: "Jane Doe", email: "jane@example.org"),');
+  });
+  test("revision number, date and remark, with the document's version label", async () => {
+    const out = await typst("upsa-regulations");
+    expect(out).toContain('number: "1.0",');
+    // `:revdate: {docdate}`; the tests pin SOURCE_DATE_EPOCH so the date is stable.
+    expect(out).toContain('date: "2000-01-01",');
+    expect(out).toContain('remark: "Adaptado de los reglamentos oficiales de la Universidad Privada');
+    expect(out).toContain('label: "Versión",');
+  });
+  test("the title logo is built in the document and bundled next to main.typ", async () => {
+    const result = await convertFixture("upsa-regulations");
+    expect(result.typst).toContain('logo: (image: image("images/upsa-cross-green.svg", width: 25%)),');
+    const logo = result.files.find((f) => f.path === "images/upsa-cross-green.svg");
+    expect(logo?.source).toMatch(/fixtures[\\/]upsa-cross-green\.svg$/);
+  });
+  test("an abstract section, an abstract block and a titled abstract paragraph", async () => {
+    const out = await typst("upsa-regulations");
+    expect(out).toContain("#abstract(title: [Abstract])[\nEste repositorio contiene");
+    expect(out).toContain('#abstract(style: "block")[\nThis article will take you');
+    expect(out).toContain(
+      '#abstract(style: "block", title: [Abstract])[Documentation is a distillation of many long adventures.]',
+    );
+  });
+  test("the bundle is main.typ, one bibliography file and the images", async () => {
+    const result = await convertFixture("upsa-regulations");
+    expect(result.files.map((f) => f.path)).toEqual([
+      "main.typ",
+      "bibliography.yaml",
+      "images/upsa-cross-green.svg",
+    ]);
+  });
+  test("the bibliography is a file; captions and labels survive as YAML comments", async () => {
+    const result = await convertFixture("upsa-regulations");
+    expect(result.typst).toContain('#bibliography(\n  full: true,\n  "bibliography.yaml",\n)');
+    expect(result.typst).not.toContain("<_referencias>");
+    expect(result.typst).not.toContain("adoc-bibliography");
+    const yaml = result.files.find((f) => f.path === "bibliography.yaml")?.content ?? "";
+    expect(yaml).toStartWith("# Marco normativo nacional\ncpe: # AsciiDoc label: 1\n");
+    expect(yaml).toContain("\n\n# Estatuto orgánico institucional\nupsa-statute: # AsciiDoc label: 4\n");
+    expect(yaml).toContain("\n\n# Reglamentos internos obligatorios (D.S. 1433, Arts. 8–17)\nupsa-inst-reg:");
+    expect(yaml).toContain(
+      "\n\n# Reglamentos y normativas específicas complementarias\nupsa-internship-reg:",
+    );
+  });
+});
+
+describe("ignored attributes", () => {
+  test("source-highlighter and stem are neither passed nor stored", async () => {
+    const out = await typst("ignored-attributes");
+    expect(out).toContain('attributes: ("kept": "this one is passed on")');
+    expect(out).not.toContain('"source-highlighter"');
+    expect(out).not.toContain('"stem"');
+  });
+  test("an unreferenced one is reported", async () => {
+    const messages = await messages_("ignored-attributes");
+    expect(messages).toContain("attribute :stem: is ignored (math is always LaTeX)");
+  });
+  test("a referenced one is just replaced by its value, with no warning", async () => {
+    const out = await typst("ignored-attributes");
+    expect(out).toContain("replaced by its value: rouge.");
+    const messages = await messages_("ignored-attributes");
+    expect(messages.join("\n")).not.toContain("source-highlighter");
+  });
+  test("the highlighter does not touch listings: Typst highlights them", async () => {
+    expect(await typst("ignored-attributes")).toContain('#raw(block: true, lang: "zig", "const a = 1;")');
+  });
+
+  async function messages_(name: string): Promise<string[]> {
+    return (await convertFixture(name)).diagnostics.map((d) => d.message);
+  }
+});
+
+describe("heading numbering in a book with parts", () => {
+  const typstAvailable = spawnSync("typst", ["--version"]).status === 0;
+
+  /** Compiles a fixture and returns `[title, number]` for every heading, as Typst numbers them. */
+  async function numbers(name: string): Promise<Array<[string, string | null]>> {
+    const result = await convertFixture(name);
+    const dir = join(root, "out", "numbering", name);
+    writeFiles(dir, result.files);
+    // Ask Typst for the number each heading is displayed with, evaluated at the heading.
+    const probe = [
+      result.typst,
+      "#context [#metadata(query(heading).map(h => (",
+      '  h.body.at("text", default: "?"),',
+      "  if h.numbering == none { none } else { numbering(h.numbering, ..counter(heading).at(h.location())) },",
+      ")))<numbers>]",
+      "",
+    ].join("\n");
+    writeFileSync(join(dir, "main.typ"), probe);
+    const r = spawnSync(
+      "typst",
+      [
+        "query",
+        "--root",
+        root,
+        join(dir, "main.typ"),
+        "<numbers>",
+        "--field",
+        "value",
+        "--one",
+        "--format",
+        "json",
+      ],
+      { encoding: "utf8" },
+    );
+    expect(r.status).toBe(0);
+    return JSON.parse(r.stdout);
+  }
+
+  test.skipIf(!typstAvailable)(
+    "chapters are continuous across parts, parts are roman, sections follow their chapter",
+    async () => {
+      const headings = await numbers("book-multi-part");
+      const numbered = Object.fromEntries(headings.filter(([, n]) => n !== null));
+      expect(numbered).toEqual({
+        "Part One": "I",
+        "First chapter": "1",
+        "A section": "1.1",
+        "Second chapter": "2",
+        "Part Two": "II",
+        // Not "2.1": the chapter count does not restart with the part.
+        "Third chapter": "3",
+        // The first appendix restarts the chapter count (see the next test).
+        "Extra material": "Appendix A",
+      });
+    },
+    60_000,
+  );
+
+  test.skipIf(!typstAvailable)(
+    "a normal book (no parts) keeps the plain numbering: chapters 1, 2 and sections 1.1",
+    async () => {
+      const numbered = Object.fromEntries((await numbers("book")).filter(([, n]) => n !== null));
+      expect(numbered).toEqual({ "Chapter one": "1", Section: "1.1", "Chapter two": "2" });
+    },
+    60_000,
+  );
+
+  test.skipIf(!typstAvailable)(
+    "appendices restart at A and special sections stay unnumbered",
+    async () => {
+      const headings = await numbers("book-multi-part");
+      const byTitle = new Map(headings);
+      expect(byTitle.get("Extra material")).toBe("Appendix A");
+      for (const title of ["Preface", "Glossary", "Colophon", "For someone"]) {
+        expect(byTitle.get(title) ?? null).toBeNull();
+      }
+    },
+    60_000,
+  );
 });

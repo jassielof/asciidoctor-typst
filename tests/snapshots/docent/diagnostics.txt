@@ -1,0 +1,2 @@
+warning: attribute :source-highlighter: is ignored (Typst highlights code itself) (docent.adoc)
+warning: attribute :stem: is ignored (math is always LaTeX) (docent.adoc)
