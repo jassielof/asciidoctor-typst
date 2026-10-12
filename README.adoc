@@ -100,6 +100,54 @@ Programmatic use: `+await convert(source, options)+` / `+await convertFile(path,
 
 Diagnostics combine Asciidoctor's own warnings (missing includes, undefined attributes, unterminated blocks, …) with the converter's (unresolved xrefs, remote images, unsupported media, HTML passthroughs). The conversion runs in Asciidoctor's `safe` mode with the source directory as the include jail (`baseDir` option to change it).
 
+== The template
+
+The Typst template (`packages/core/template`) is laid out like a thesis template: the settings, then front, main and back matter. Asciidoctor has only two document types, and the template has the same two:
+
+[source,typst]
+----
+#show: settings.with(doctype: "book", title: [...], authors: (...), ...)
+#show: front-matter   // title page, table of contents; abstract, dedication, preface, ...
+#show: main-matter    // parts, chapters and sections
+#show: back-matter    // appendices, glossary, bibliography, index, colophon
+----
+
+The converter places the switches from the section styles: the document starts as front matter, the first section that is not front matter (an abstract, dedication, acknowledgments or preface) starts the main matter, and whatever follows the last main section (appendix, glossary, bibliography, index, colophon) is back matter.
+
+[cols="1,2,2",options="header"]
+|===
+| | Article | Book
+
+| Layout
+| continuous, two columns, US Letter, like an IEEE paper
+| one column, A4
+
+| Title
+| a block over both columns at the top of the first page
+| a page of its own, laid out like Asciidoctor PDF's `title_page` theme
+
+| Page numbers
+| arabic
+| roman in the front matter, arabic from the first chapter
+
+| Special sections
+| abstract, appendix, glossary, bibliography, index
+| the same, plus dedication, acknowledgments, preface, colophon and part introductions
+
+| Headings
+| numbered with `:sectnums:`, level 1 centred in small capitals
+| chapters (or parts) start on a new page; with parts the chapters are counted across parts
+|===
+
+The document type is part of the settings (`doctype:`), and is kept in a state (`document-doctype()`). The book is built on the same base style as the article (`lib/style.typ`) and only adds to it. The files:
+
+* `lib.typ` – `settings`, `front-matter`, `main-matter`, `back-matter`, and everything the document imports.
+* `lib/style.typ` – the article and book styles, and their default fonts.
+* `lib/title-page.typ` – the title page of a book and the title block of an article.
+* `lib/sections.typ` – the special sections.
+* `lib/blocks.typ` – admonitions, sidebars, callouts and the other blocks and inline concepts without a Typst equivalent.
+* `lib/authorship.typ`, `lib/version.typ`, `lib/document-info.typ`, `lib/numbering.typ` – authors, revision, document information and chapter numbering.
+
 == Output contract
 
 Native Typst is used wherever Typst can express the construct. Everything else calls an `adoc-*` function from `packages/core/template/lib.typ`, which is where styling lives.
@@ -109,13 +157,13 @@ Native Typst is used wherever Typst can express the construct. Everything else c
 | AsciiDoc | Typst
 
 | document header
-| `+#show: adoc-book.with(title:, subtitle:, authors:, revision:, logo:, parts:, attributes:)+` (or `adoc-article`)
+| `+#show: settings.with(doctype:, title:, subtitle:, authors:, revision:, logo:, lang:, parts:, attributes:)+`, then `+#show: front-matter+`, `+#show: main-matter+` and `+#show: back-matter+` where each starts (see <<_the_template>>)
 
 | `+[abstract]+` section / block / titled paragraph
 | `+#abstract(title: [...])[...]+` / `+#abstract(style: "block")[...]+` / `+#abstract(style: "block", title: [...])[...]+`
 
-| `+[colophon]+`, `+[dedication]+`, `+[acknowledgments]+`, `+[preface]+`, `+[foreword]+`, `+[afterword]+`
-| `+#colophon(title: [...])[...]+`, `+#dedication(…)+`, … (`level:` only when not 1); the function draws the heading
+| `+[colophon]+`, `+[dedication]+`, `+[acknowledgments]+`, `+[preface]+` (books only)
+| `+#colophon(title: [...])[...]+`, `+#dedication(…)+`, … (`level:` only when not 1); the function draws the heading. In an article they are reported and written as ordinary sections
 
 | `+[bibliography]+`
 | a bare `+#bibliography(full: true, "bibliography.yaml")+` (no wrapper, no label)
@@ -212,7 +260,8 @@ The header information Asciidoctor derives is passed to the template as data, ea
 
 [source,typst]
 ----
-#show: adoc-book.with(
+#show: settings.with(
+  doctype: "book",
   authors: (
     (name: "Jassiel Ovando_F.", email: "…"),
     (name: "Vivienne Y."),
@@ -224,7 +273,7 @@ The header information Asciidoctor derives is passed to the template as data, ea
 )
 ----
 
-Information that has its own argument is *not repeated* in `attributes` (`version-label`, `title-logo-image`, `lang`), and the document type is the wrapper itself (`adoc-book` / `adoc-article`), so `doctype` is not repeated either. `attributes` holds the rest (`toc`, `sectnums`, custom attributes, …).
+Information that has its own argument is *not repeated* in `attributes` (`version-label`, `title-logo-image`, `lang`), and the document type is an argument of `settings`, so `doctype` is not repeated in `attributes` either. `attributes` holds the rest (`toc`, `sectnums`, custom attributes, …).
 
 * *Authors* follow the https://docs.asciidoctor.org/asciidoc/latest/document/author-information/[AsciiDoc rules]: one or many on the author line (`+A <a@x>; B+`), or one through `:author:`/`:email:`/… attributes. An author is only `name` (as written, `_` joining the words of one name) and `email`. The first, middle and last name and the initials are *derived by the library* from the name (`parse-author` in `lib/authorship.typ`, same rules as AsciiDoc: at most three names, a longer name is kept whole as the first name), and stored in the `authors` state. Explicit keys in the dictionary win over the derived ones.
 * *Revision* is `revnumber`, `revdate`, `revremark` plus `version-label` (the text before the number). `lib/version.typ` formats it like Asciidoctor PDF (`Versión 1.0, 2026-10-12`, then the remark) and keeps it in the `revision` state.
