@@ -1,5 +1,4 @@
-= asciidoctor-typst
-:description: Converts AsciiDoc to Typst, and compiles it to PDF, using the official Asciidoctor parser.
+= AsciiDoctor Typst
 
 Converts AsciiDoc to Typst. Parsing is done by the official https://github.com/asciidoctor/asciidoctor.js[`@asciidoctor/core`] library, so all AsciiDoc semantics (includes, conditionals, attribute substitution, list/table/section rules, ids, xrefs, callouts, footnotes) are exactly Asciidoctor's. This project only maps Asciidoctor's AST to Typst; there is no intermediate format (no DocBook, no HTML).
 
