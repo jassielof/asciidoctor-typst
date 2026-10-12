@@ -7,6 +7,8 @@ describe("escaping", () => {
   });
   test("hyphen runs, comment starts and ellipses", () => {
     expect(escapeMarkup("a--b")).toBe("a\\-\\-b");
+    // Otherwise `#link(..)[x];` swallows the semicolon.
+    expect(escapeMarkup("x; y")).toBe("x\\; y");
     expect(escapeMarkup("a//b")).toBe("a\\//b");
     expect(escapeMarkup("x...")).toBe("x\\...");
   });

@@ -27,7 +27,7 @@ To Vivienne, truly.
 #adoc-preface[
 == About this documentation <_about_this_documentation>
 
-This documentation covers both the CLI tool and the public library API. The CLI docs are aimed at end users; the library docs target developers embedding Docent programmatically.
+This documentation covers both the CLI tool and the public library API. The CLI docs are aimed at end users\; the library docs target developers embedding Docent programmatically.
 
 #adoc-block-title[Available as:]
 - #link("https://jassielof.github.io/docent/")[This README].
@@ -123,7 +123,7 @@ To check the rules documentation, check #link("https://jassielof.github.io/docen
 == Formatting <_formatting>
 
 #raw("docent fmt") formats explicit command-line paths first. When no paths are given,
-it uses #raw("[fmt].include") from #raw(".config/docent.toml"); when that is also unset, it
+it uses #raw("[fmt].include") from #raw(".config/docent.toml")\; when that is also unset, it
 uses #raw(".paths") from the nearest #raw("build.zig.zon"). Manifest-derived files are
 limited to #raw(".zig") and #raw(".zon"), while manifest-derived directories are walked
 recursively with the same filter. Entries such as README and license files are

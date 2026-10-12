@@ -60,7 +60,7 @@ export function decodeEntities(s: string): string {
   });
 }
 
-/** Escapes text for Typst markup mode. `colons` also escapes `:` (inside term-list terms). */
+/** Escapes text for Typst markup mode. `colons` also escapes `:` (inside term-list terms). `;` is always escaped: right after an inline call (`#link(..)[..];`) it would end the code expression and vanish. */
 export function escapeMarkup(s: string, colons = false): string {
   let out = "";
   for (let i = 0; i < s.length; i++) {
@@ -77,6 +77,7 @@ export function escapeMarkup(s: string, colons = false): string {
       case "@":
       case "[":
       case "]":
+      case ";":
         out += "\\" + c;
         break;
       case "-":
