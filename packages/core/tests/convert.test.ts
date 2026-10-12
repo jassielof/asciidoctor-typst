@@ -505,6 +505,26 @@ describe("real-world documents", () => {
     expect(result.typst).toContain('#link("Reglamento de graduación.pdf")[Reglamento de graduación]');
     expect(result.bibliographies[0]).toContain('author:\n    name: "Estado Plurinacional de Bolivia"');
   });
+  test("asciidoctor-readme: conditionals, attribute-built URLs, a remote image and a multi-author line", async () => {
+    const result = await convertFixture("asciidoctor-readme");
+    // The only problem is the remote screenshot, which cannot be embedded.
+    expect(result.diagnostics.map((d) => d.message)).toEqual([
+      "remote image is not supported by Typst, emitted as a link: https://cdn.jsdelivr.net/gh/asciidoctor/asciidoctor/screenshot.png",
+    ]);
+    expect(result.typst).toContain(
+      '(name: "Dan Allen", email: "https://github.com/mojavelinux[@mojavelinux]")',
+    );
+    expect(result.typst).toContain(
+      '(name: "Sarah White", email: "https://github.com/graphitefriction[@graphitefriction]")',
+    );
+    expect(result.typst).toContain(
+      '#link("https://cdn.jsdelivr.net/gh/asciidoctor/asciidoctor/screenshot.png")[Preview of AsciiDoc source and corresponding rendered HTML]',
+    );
+    // `ifdef::env-github[]` is not taken, so the emoji captions of that branch never appear.
+    expect(result.typst).not.toContain(":fire:");
+    expect(result.typst).toContain('#adoc-admonition("caution")[');
+    expect(result.typst).toContain('#link("https://asciidoctor.org")[Asciidoctor]');
+  });
 });
 
 /**

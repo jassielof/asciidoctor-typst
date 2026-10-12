@@ -1,0 +1,1 @@
+warning: remote image is not supported by Typst, emitted as a link: https://cdn.jsdelivr.net/gh/asciidoctor/asciidoctor/screenshot.png (asciidoctor-readme.adoc:101)
