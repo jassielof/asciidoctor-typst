@@ -1,0 +1,7 @@
+= The preamble
+
+This is the preamble of the document.
+
+== First section
+
+This is the first section.

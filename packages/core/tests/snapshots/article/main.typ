@@ -31,17 +31,17 @@
   So this is part of the preamble too.
 ]
 
-== First section
+= First section
 
 The first ever section paragraph is automatically the leading paragraph.
 
 The rest are normal paragraphs.
 
-=== Nested section
+== A nested subsection
 
 Or else, one can use the `[.lead]` role to mark a paragraph as the leading paragraph.
 
-==== Deeper section with an explicit id <explicit-id>
+=== Deeper section with an explicit id <explicit-id>
 
 #leading-par[The paragraph's alignment can be set with the `.text-<alignment>` role, the options are: `.text-left`, `.text-center`, and `.text-right`.]
 

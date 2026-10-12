@@ -16,7 +16,7 @@ The first ever section paragraph is automatically the leading paragraph.
 
 The rest are normal paragraphs.
 
-=== Nested section
+=== A subsection
 
 [.lead]
 Or else, one can use the `[.lead]` role to mark a paragraph as the leading paragraph.
