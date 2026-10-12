@@ -225,12 +225,36 @@ describe("sections", () => {
     expect(out).toContain('#adoc-role(("some-role",))[');
     expect(out).toContain("#heading(level: 2, outlined: false, numbering: none)[A discrete heading]");
   });
-  test("special sections wrap their heading and content", async () => {
+  test("special sections without a template function wrap their heading and content", async () => {
     const out = await typst("book-multi-part");
-    expect(out).toContain("#adoc-preface[\n== Preface <_preface>\n\nA preface.\n]");
     expect(out).toContain("#adoc-appendix[");
     expect(out).toContain("#adoc-glossary[");
-    expect(out).toContain("#adoc-dedication[");
+  });
+  test("preface, dedication, colophon & co use the template functions, which draw their own heading", async () => {
+    const out = await typst("book-multi-part");
+    expect(out).toContain("#preface(title: [Preface], level: 2)[A preface.]");
+    expect(out).toContain("#dedication(title: [For someone], level: 2)[To someone.]");
+    expect(out).toContain("#colophon(title: [Colophon], level: 2)[Made with Typst.]");
+    for (const old of [
+      "adoc-preface",
+      "adoc-dedication",
+      "adoc-acknowledgments",
+      "adoc-colophon",
+      "adoc-bibliography",
+    ]) {
+      expect(out).not.toContain(old);
+    }
+    expect(out).not.toContain("<_preface>");
+    expect(out).not.toContain("<_for_someone>");
+  });
+  test("acknowledgments, foreword and afterword too", async () => {
+    const { convert } = await import("../src/convert.ts");
+    const { typst: out } = await convert(
+      "= T\n:doctype: book\n\n[acknowledgments]\n== Thanks\n\nThank you.\n\n[foreword]\n== Before\n\nFirst.\n\n[afterword]\n== After\n\nLast.\n\n== A chapter\n\nText.\n",
+    );
+    expect(out).toContain("#acknowledgments(title: [Thanks])[Thank you.]");
+    expect(out).toContain("#foreword(title: [Before])[First.]");
+    expect(out).toContain("#afterword(title: [After])[Last.]");
   });
   test("the colophon uses the template function, which draws its own heading", async () => {
     const out = await typst("book-multi-part");

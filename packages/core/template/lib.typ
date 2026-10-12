@@ -1,5 +1,5 @@
 #import "@preview/mitex:0.2.7": mi, mitex
-#import "lib/sections.typ": abstract, colophon
+#import "lib/sections.typ": abstract, acknowledgments, afterword, colophon, dedication, foreword, preface
 #import "lib/authorship.typ" as authorship
 #import "lib/authorship.typ": (
   author-count, author-email, author-field, author-firstname, author-initials, author-lastname, author-middlename,
@@ -154,28 +154,7 @@
   body
 }
 
-
-
-// Similar to the TODO in acknowledgments, remove these and add a sections.* for each of them, to be used in the template.
-#let adoc-preface(body) = adoc-unnumbered(body)
-#let adoc-foreword(body) = adoc-unnumbered(body)
-#let adoc-afterword(body) = adoc-unnumbered(body)
-
-// TODO: Use sections.dedication instead, this should be removed.
-#let adoc-dedication(body) = {
-  set heading(numbering: none, outlined: false)
-  align(center + horizon, emph(body))
-}
-
-// TODO: Remove it and add a sections.acknowledgments instead to-be used.
-#let adoc-acknowledgments(body) = adoc-unnumbered(body)
-
-// TODO: Use sections.colophon instead, this should be removed.
-#let adoc-colophon(body) = adoc-unnumbered(body)
 #let adoc-glossary(body) = adoc-unnumbered(body)
-
-// TODO: Use bibliography directly instead, this should be removed.
-#let adoc-bibliography(body) = adoc-unnumbered(body)
 #let adoc-index(body) = adoc-unnumbered(body)
 #let adoc-synopsis(body) = body
 #let adoc-appendix(body) = {

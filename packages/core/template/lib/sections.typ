@@ -40,20 +40,36 @@
   }
 }
 
-/// https://docs.asciidoctor.org/asciidoc/latest/sections/colophon/
-///
-/// - `title`: the section title; the heading is drawn here (a special section: not numbered).
-/// - `level`: heading level of the section (2 in a book with parts).
-#let colophon(body, title: none, level: 1) = {
+/// A special section that is not numbered and draws its own heading. `level` is the heading level of the section (2 in a book with parts).
+#let special-section(body, title: none, level: 1) = {
   set heading(numbering: none)
   if title != none { heading(title, level: level) }
 
   body
 }
 
-#let dedication(body, title: none) = {
-  set heading(numbering: none)
-  if title != none { heading(title) }
+/// https://docs.asciidoctor.org/asciidoc/latest/sections/colophon/
+#let colophon(body, title: none, level: 1) = special-section(body, title: title, level: level)
 
-  body
+/// https://docs.asciidoctor.org/asciidoc/latest/sections/special-section-titles/
+///
+/// Centered and italic, with a heading that is not in the outline.
+#let dedication(body, title: none, level: 1) = {
+  set heading(numbering: none, outlined: false)
+  align(center + horizon, emph({
+    if title != none { heading(title, level: level) }
+    body
+  }))
 }
+
+/// https://docs.asciidoctor.org/asciidoc/latest/sections/special-section-titles/
+#let acknowledgments(body, title: none, level: 1) = special-section(body, title: title, level: level)
+
+/// https://docs.asciidoctor.org/asciidoc/latest/sections/special-section-titles/
+#let preface(body, title: none, level: 1) = special-section(body, title: title, level: level)
+
+/// https://docs.asciidoctor.org/asciidoc/latest/sections/special-section-titles/
+#let foreword(body, title: none, level: 1) = special-section(body, title: title, level: level)
+
+/// https://docs.asciidoctor.org/asciidoc/latest/sections/special-section-titles/
+#let afterword(body, title: none, level: 1) = special-section(body, title: title, level: level)

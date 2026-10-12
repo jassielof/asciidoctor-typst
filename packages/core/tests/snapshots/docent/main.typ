@@ -12,21 +12,11 @@
 
 #abstract(style: "block")[Docent is a code quality linter for Zig, focused on documentation, complexity and style. It’s available as a CLI and library.]
 
-#adoc-dedication[
-== Dedication <_dedication>
+#dedication(title: [Dedication], level: 2)[To Vivienne.]
 
-To Vivienne.
-]
+#dedication(title: [Another dedication], level: 2)[To Vivienne, truly.]
 
-#adoc-dedication[
-== Another dedication <_another_dedication>
-
-To Vivienne, truly.
-]
-
-#adoc-preface[
-== About this documentation <_about_this_documentation>
-
+#preface(title: [About this documentation], level: 2)[
 This documentation covers both the CLI tool and the public library API. The CLI docs are aimed at end users\; the library docs target developers embedding Docent programmatically.
 
 #adoc-block-title[Available as:]
@@ -159,8 +149,4 @@ Please refer to the tests README.
 )
 ]
 
-#adoc-acknowledgments[
-== Acknowledgments and prior art <_acknowledgments_and_prior_art>
-
-Mainly Rust/Cargo’s documentation (and probably Clippy too) and linter checks, while also taking inspiration from Go’s linting tooling. As well as #link("https://codeberg.org/RhyosLabs/ephor")[Scott Matheina’s Ephor]
-]
+#acknowledgments(title: [Acknowledgments and prior art], level: 2)[Mainly Rust/Cargo’s documentation (and probably Clippy too) and linter checks, while also taking inspiration from Go’s linting tooling. As well as #link("https://codeberg.org/RhyosLabs/ephor")[Scott Matheina’s Ephor]]

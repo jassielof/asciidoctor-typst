@@ -12,17 +12,9 @@
 
 #abstract(style: "block")[An abstract.]
 
-#adoc-dedication[
-== For someone <_for_someone>
+#dedication(title: [For someone], level: 2)[To someone.]
 
-To someone.
-]
-
-#adoc-preface[
-== Preface <_preface>
-
-A preface.
-]
+#preface(title: [Preface], level: 2)[A preface.]
 
 = Part One <_part_one>
 

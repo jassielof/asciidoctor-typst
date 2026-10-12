@@ -114,8 +114,8 @@ Native Typst is used wherever Typst can express the construct. Everything else c
 | `+[abstract]+` section / block / titled paragraph
 | `+#abstract(title: [...])[...]+` / `+#abstract(style: "block")[...]+` / `+#abstract(style: "block", title: [...])[...]+`
 
-| `+[colophon]+`
-| `+#colophon(title: [...])[...]+` (`level:` only when not 1); the function draws the heading
+| `+[colophon]+`, `+[dedication]+`, `+[acknowledgments]+`, `+[preface]+`, `+[foreword]+`, `+[afterword]+`
+| `+#colophon(title: [...])[...]+`, `+#dedication(…)+`, … (`level:` only when not 1); the function draws the heading
 
 | `+[bibliography]+`
 | a bare `+#bibliography(full: true, "bibliography.yaml")+` (no wrapper, no label)
@@ -123,8 +123,8 @@ Native Typst is used wherever Typst can express the construct. Everything else c
 | sections
 | `=` headings. In a book with parts: part `=`, chapter `==`, section `===` (`parts: true`)
 
-| `+[preface]+`, `+[appendix]+`, `+[glossary]+`, …
-| `+#adoc-preface[ … ]+`, `+#adoc-appendix[ … ]+`, … around the heading and its content
+| `+[appendix]+`, `+[glossary]+`, `+[index]+`, …
+| `+#adoc-appendix[ … ]+`, `+#adoc-glossary[ … ]+`, … around the heading and its content
 
 | `+[abstract]+`, `+[partintro]+`
 | `+#adoc-abstract[…]+`, `+#adoc-partintro[…]+`
