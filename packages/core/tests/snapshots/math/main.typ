@@ -2,12 +2,17 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-article.with(
+#show: settings.with(
+  doctype: "article",
   title: [Math],
   authors: (),
   parts: false,
   attributes: (:),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 Inline #mi("x^2 + y^2") and #mi("\\frac{a}{b}").
 

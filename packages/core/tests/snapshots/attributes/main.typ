@@ -2,12 +2,17 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-article.with(
+#show: settings.with(
+  doctype: "article",
   title: [Attributes and conditionals],
   authors: (),
   parts: false,
   attributes: ("name": "World", "a": "", "n": "3", "flag-value": "*not bold*"),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 Hello World, a missing {nope} and an escaped {name}.
 

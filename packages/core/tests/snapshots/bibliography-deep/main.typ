@@ -2,13 +2,18 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-article.with(
+#show: settings.with(
+  doctype: "article",
   title: [Nested bibliography],
   authors: (),
   lang: "en",
   parts: false,
   attributes: (:),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 Cited as #cite(<no>)s and, at the end of a sentence, @no. Section: Referencias.
 

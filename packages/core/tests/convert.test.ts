@@ -36,9 +36,11 @@ describe("document header (article)", () => {
     expect(out).not.toContain('"author"');
   });
   test("doctype comes from the document and can be forced", async () => {
-    expect(await typst("article")).toContain("#show: adoc-article.with(");
-    expect(await typst("book")).toContain("#show: adoc-book.with(");
-    expect(await typst("article", { doctype: "book" })).toContain("#show: adoc-book.with(");
+    expect(await typst("article")).toContain('#show: settings.with(\n  doctype: "article",');
+    expect(await typst("book")).toContain('#show: settings.with(\n  doctype: "book",');
+    expect(await typst("article", { doctype: "book" })).toContain(
+      '#show: settings.with(\n  doctype: "book",',
+    );
   });
 });
 
@@ -247,20 +249,49 @@ describe("sections", () => {
     expect(out).not.toContain("<_preface>");
     expect(out).not.toContain("<_for_someone>");
   });
-  test("acknowledgments, foreword and afterword too", async () => {
+  test("acknowledgments use the template function too", async () => {
     const { convert } = await import("../src/convert.ts");
     const { typst: out } = await convert(
-      "= T\n:doctype: book\n\n[acknowledgments]\n== Thanks\n\nThank you.\n\n[foreword]\n== Before\n\nFirst.\n\n[afterword]\n== After\n\nLast.\n\n== A chapter\n\nText.\n",
+      "= T\n:doctype: book\n\n[acknowledgments]\n== Thanks\n\nThank you.\n\n== A chapter\n\nText.\n",
     );
     expect(out).toContain("#acknowledgments(title: [Thanks])[Thank you.]");
-    expect(out).toContain("#foreword(title: [Before])[First.]");
-    expect(out).toContain("#afterword(title: [After])[Last.]");
   });
-  test("the colophon uses the template function, which draws its own heading", async () => {
-    const out = await typst("book-multi-part");
-    expect(out).toContain("#colophon(title: [Colophon], level: 2)[Made with Typst.]");
-    expect(out).not.toContain("adoc-colophon");
-    expect(out).not.toContain("<_colophon>");
+  test("the document is laid out as front, main and back matter", async () => {
+    const { convert } = await import("../src/convert.ts");
+    const { typst: out } = await convert(
+      "= T\n:doctype: book\n\n[abstract]\nAbstract.\n\n[preface]\n== Pre\n\nText.\n\n== Chapter\n\nBody.\n\n[appendix]\n== App\n\nExtra.\n\n[glossary]\n== Gloss\n\nterm:: def\n",
+    );
+    const at = (s: string) => {
+      const i = out.indexOf(s);
+      expect(i).toBeGreaterThan(-1);
+      return i;
+    };
+    const order = [
+      "#show: settings.with(",
+      "#show: front-matter",
+      "#abstract(",
+      "#preface(",
+      "#show: main-matter",
+      "= Chapter",
+      "#show: back-matter",
+      "#adoc-appendix[",
+      "#adoc-glossary[",
+    ].map(at);
+    expect(order).toEqual([...order].sort((x, y) => x - y));
+  });
+  test("an article has the same switches, with only the abstract in front", async () => {
+    const out = await typst("article");
+    expect(out).toContain("#show: front-matter");
+    expect(out).toContain("#show: main-matter");
+  });
+  test("book-only sections in an article are reported and written as ordinary sections", async () => {
+    const { convert } = await import("../src/convert.ts");
+    const { typst: out, diagnostics } = await convert("= T\n\n[colophon]\n== Made with\n\nTypst.\n");
+    expect(diagnostics.map((d) => d.message)).toEqual([
+      '[colophon] sections only exist in books; "Made with" is written as an ordinary section',
+    ]);
+    expect(out).toContain("= Made with <_made_with>");
+    expect(out).not.toContain("#colophon(");
   });
   test("abstract and part intro", async () => {
     const out = await typst("book-multi-part");

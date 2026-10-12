@@ -2,12 +2,17 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-article.with(
+#show: settings.with(
+  doctype: "article",
   title: [Tables],
   authors: (),
   parts: false,
   attributes: (:),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 #figure(
   table(

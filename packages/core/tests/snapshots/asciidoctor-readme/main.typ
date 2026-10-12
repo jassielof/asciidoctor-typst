@@ -2,7 +2,8 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-article.with(
+#show: settings.with(
+  doctype: "article",
   title: [Asciidoctor],
   authors: (
     (name: "Dan Allen", email: "https://github.com/mojavelinux[@mojavelinux]"),
@@ -11,6 +12,10 @@
   parts: false,
   attributes: ("idprefix": "", "idseparator": "-", "source-language": "ruby", "icons": "font", "release-version": "2.0.22", "url-org": "https://github.com/asciidoctor", "url-repo": "https://github.com/asciidoctor/asciidoctor", "url-asciidoctorj": "https://github.com/asciidoctor/asciidoctorj", "url-asciidoctorjs": "https://github.com/asciidoctor/asciidoctor.js", "url-gradle-plugin": "https://github.com/asciidoctor/asciidoctor-gradle-plugin", "url-maven-plugin": "https://github.com/asciidoctor/asciidoctor-maven-plugin", "url-asciidoclet": "https://github.com/asciidoctor/asciidoclet", "url-project": "https://asciidoctor.org", "url-docs": "https://docs.asciidoctor.org", "url-news": "https://asciidoctor.org/news", "url-manpage": "https://asciidoctor.org/man/asciidoctor", "url-issues": "https://github.com/asciidoctor/asciidoctor/issues", "url-contributors": "https://github.com/asciidoctor/asciidoctor/graphs/contributors", "url-rel-file-base": "link:", "url-rel-tree-base": "link:", "url-changelog": "link:CHANGELOG.adoc", "url-contribute": "link:CONTRIBUTING.adoc", "url-license": "link:LICENSE", "url-tests": "link:test", "url-discuss": "https://discuss.asciidoctor.org", "url-chat": "https://chat.asciidoctor.org", "url-rubygem": "https://rubygems.org/gems/asciidoctor", "url-what-is-asciidoc": "https://docs.asciidoctor.org/asciidoctor/latest/#relationship-to-asciidoc", "url-install-docker": "https://github.com/asciidoctor/docker-asciidoctor", "url-opal": "https://opalrb.com", "url-tilt": "https://github.com/rtomayko/tilt", "url-ruby": "https://www.ruby-lang.org", "image-url-screenshot": "https://cdn.jsdelivr.net/gh/asciidoctor/asciidoctor/screenshot.png"),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 #link("https://asciidoctor.org")[Asciidoctor] is a fast, open source, Ruby-based text processor for parsing AsciiDoc® into a document model and converting it to output formats such as HTML 5, DocBook 5, manual pages, PDF, EPUB 3, and other formats.
 

@@ -2,7 +2,8 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-article.with(
+#show: settings.with(
+  doctype: "article",
   title: [An Article],
   subtitle: [With a Subtitle],
   authors: (
@@ -19,6 +20,10 @@
   parts: false,
   attributes: ("sectnums": "", "custom-attribute": "custom value", "toc": ""),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 A preamble paragraph before the first section.
 

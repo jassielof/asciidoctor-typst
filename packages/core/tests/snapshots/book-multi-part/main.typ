@@ -2,7 +2,8 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-book.with(
+#show: settings.with(
+  doctype: "book",
   title: [The Book],
   subtitle: [Parts and Chapters],
   authors: (),
@@ -10,11 +11,15 @@
   attributes: ("sectnums": ""),
 )
 
+#show: front-matter
+
 #abstract(style: "block")[An abstract.]
 
 #dedication(title: [For someone], level: 2)[To someone.]
 
 #preface(title: [Preface], level: 2)[A preface.]
+
+#show: main-matter
 
 = Part One <_part_one>
 

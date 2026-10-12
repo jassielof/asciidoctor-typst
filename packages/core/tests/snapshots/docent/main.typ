@@ -2,13 +2,16 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-book.with(
+#show: settings.with(
+  doctype: "book",
   title: [Docent],
   subtitle: [Code Quality Linter for Zig],
   authors: (),
   parts: true,
   attributes: ("repo": "https://github.com/jassielof/docent/", "default-repo-branch": "main", "repo-source": "https://github.com/jassielof/docent/tree/main/", "test-fixtures": "https://github.com/jassielof/docent/tree/main/tests/fixtures/", "valid-fixtures": "https://github.com/jassielof/docent/tree/main/tests/fixtures/valid/", "invalid-fixtures": "https://github.com/jassielof/docent/tree/main/tests/fixtures/invalid/", "website": "https://jassielof.github.io/docent/", "zig-version": "0.16.0", "zig-docs": "https://ziglang.org/documentation/0.16.0/", "zig-stdlib": "https://ziglang.org/documentation/0.16.0/std/", "toc": ""),
 )
+
+#show: front-matter
 
 #abstract(style: "block")[Docent is a code quality linter for Zig, focused on documentation, complexity and style. It’s available as a CLI and library.]
 
@@ -24,6 +27,8 @@ This documentation covers both the CLI tool and the public library API. The CLI 
 - #link("https://jassielof.github.io/docent/cli/")[The CLI documentation], available as well as a #link("https://jassielof.github.io/docent/cli/docent.pdf")[PDF] for offline reading.
 - #link("https://jassielof.github.io/docent/lib/")[The library documentation].
 ]
+
+#show: main-matter
 
 #adoc-glossary[
 == Concepts and terminology <_concepts_and_terminology>

@@ -2,12 +2,17 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-article.with(
+#show: settings.with(
+  doctype: "article",
   title: [Ignored attributes],
   authors: (),
   parts: false,
   attributes: ("kept": "this one is passed on"),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 Referenced, so it is replaced by its value: rouge.
 

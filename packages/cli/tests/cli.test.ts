@@ -37,7 +37,7 @@ describe("asciidoctor-typst", () => {
   test("--typst without -o prints main.typ", async () => {
     const { status, stdout } = await cli(document("= T\n\nHello.\n"), "--typst");
     expect(status).toBe(0);
-    expect(stdout).toContain("#show: adoc-article.with(");
+    expect(stdout).toContain("#show: settings.with(");
     expect(stdout).toContain("Hello.");
   });
 
@@ -59,7 +59,7 @@ describe("asciidoctor-typst", () => {
       "-d",
       "book",
     );
-    expect(stdout).toContain("adoc-book.with(");
+    expect(stdout).toContain('doctype: "book"');
     expect(stdout).toContain("Hi and");
   });
 

@@ -2,12 +2,17 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-article.with(
+#show: settings.with(
+  doctype: "article",
   title: [Typst math],
   authors: (),
   parts: false,
   attributes: (:),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 Inline $x^2 + sum_(i=1)^n i$ sits in the text.
 

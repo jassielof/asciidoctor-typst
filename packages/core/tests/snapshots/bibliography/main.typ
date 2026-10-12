@@ -2,14 +2,21 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-book.with(
+#show: settings.with(
+  doctype: "book",
   title: [Bibliography],
   authors: (),
   parts: false,
   attributes: ("zig-version": "0.16.0"),
 )
 
+#show: front-matter
+
+#show: main-matter
+
 Usage in citations @dcm-dev and @doctests, then @apa.
+
+#show: back-matter
 
 // asciidoctor-typst: the section title "References" is replaced by Typst's generated one
 #bibliography(

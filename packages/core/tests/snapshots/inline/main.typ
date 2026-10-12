@@ -2,12 +2,17 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-article.with(
+#show: settings.with(
+  doctype: "article",
   title: [Inline],
   authors: (),
   parts: false,
   attributes: ("experimental": ""),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 #strong[strong] #emph[emphasis] #raw("monospace") #highlight[mark] #super[super] #sub[sub] #strong[un]constrained.
 

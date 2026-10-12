@@ -79,3 +79,28 @@
 
   pagebreak()
 }
+/// Title block of an article: centred at the top of the first page and spanning both columns, like an IEEE paper, instead of a page of its own.
+#let article(
+  title: none,
+  subtitle: none,
+  authors: (),
+  revision: (:),
+) = place(top + center, float: true, scope: "parent", clearance: 1.5em, block(width: 100%, {
+  set align(center)
+  set par(justify: false)
+  if title != none { text(1.8em, weight: "bold", title) }
+  if subtitle != none {
+    v(0.3em)
+    text(1.2em, subtitle)
+  }
+  let names = join-names(authors)
+  if names != "" {
+    v(0.8em)
+    text(1.1em, names)
+  }
+  let info = revision-info(revision)
+  if info != none {
+    v(0.4em)
+    text(0.9em, info)
+  }
+}))

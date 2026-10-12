@@ -2,12 +2,17 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-book.with(
+#show: settings.with(
+  doctype: "book",
   title: [A Book],
   authors: (),
   parts: false,
   attributes: ("sectnums": ""),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 = Chapter one <_chapter_one>
 

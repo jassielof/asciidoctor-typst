@@ -2,12 +2,17 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-book.with(
+#show: settings.with(
+  doctype: "book",
   title: [Includes],
   authors: (),
   parts: false,
   attributes: (:),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 = Included chapter <_included_chapter>
 

@@ -2,12 +2,17 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-article.with(
+#show: settings.with(
+  doctype: "article",
   title: [Cross references and footnotes],
   authors: (),
   parts: false,
   attributes: (:),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 See #link(<target>)[Target section], #link(<target>)[custom text] and #link(<target>)[an xref macro].
 

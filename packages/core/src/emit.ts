@@ -33,16 +33,18 @@ export interface EmitOptions {
 const SPECIAL = new Set(["glossary", "appendix", "index", "partintro", "synopsis"]);
 
 /** Special sections the template draws with a function of `lib/sections.typ`, heading included (so they carry no label of their own). */
-const SECTION_FUNCTIONS = new Set([
-  "colophon",
-  "dedication",
-  "acknowledgments",
-  "preface",
-  "foreword",
-  "afterword",
-]);
+/**
+ * Special sections that exist only in books (https://docs.asciidoctor.org/asciidoc/latest/sections/styles/). In an article they are reported and written as ordinary sections.
+ */
+const BOOK_ONLY_SECTIONS = new Set(["colophon", "dedication", "acknowledgments", "preface"]);
+const SECTION_FUNCTIONS = BOOK_ONLY_SECTIONS;
 
-type SectionFunction = "colophon" | "dedication" | "acknowledgments" | "preface" | "foreword" | "afterword";
+type SectionFunction = "colophon" | "dedication" | "acknowledgments" | "preface";
+
+/** Where a top-level block belongs in the document: the template switches mode with `#show: main-matter` and `#show: back-matter`. */
+type Matter = "front" | "main" | "back";
+const FRONT_MATTER = new Set(["abstract", "dedication", "acknowledgments", "preface"]);
+const BACK_MATTER = new Set(["appendix", "glossary", "bibliography", "index", "colophon"]);
 
 const ADMONITIONS = new Set(["note", "tip", "important", "warning", "caution"]);
 
@@ -146,7 +148,7 @@ export class TypstEmitter {
     parts.push(`#import ${str(this.o.lib)}: *`);
 
     // ---- header
-    const args: string[] = [];
+    const args: string[] = [`doctype: ${str(this.o.doctype)}`];
     const t = doc.getDocumentTitle({ partition: true });
     let main: string | undefined;
     let sub: string | undefined;
@@ -162,7 +164,7 @@ export class TypstEmitter {
     if (revision) args.push(`revision: ${revision}`);
     const logo = await this.logoArg();
     if (logo) args.push(`logo: ${logo}`);
-    // The document type is the wrapper itself (adoc-book / adoc-article); the language is an argument. Both, like the revision and the logo, are available to the template as states.
+    // The document type and the language are arguments of the settings; like the revision and the logo they are available to the template as states.
     if (this.o.attributes.lang) args.push(`lang: ${str(this.o.attributes.lang)}`);
 
     args.push(`parts: ${this.hasParts}`);
@@ -171,11 +173,9 @@ export class TypstEmitter {
       .filter(([k]) => !STRUCTURED_ATTRIBUTES.has(k))
       .map(([k, v]) => `${str(k)}: ${str(v)}`);
     args.push(`attributes: (${attrEntries.length ? attrEntries.join(", ") : ":"})`);
-    const fn = this.o.doctype === "book" ? "adoc-book" : "adoc-article";
-    parts.push(`#show: ${fn}.with(\n${args.map((a) => "  " + a + ",").join("\n")}\n)`);
+    parts.push(`#show: settings.with(\n${args.map((a) => "  " + a + ",").join("\n")}\n)`);
 
-    const body = await this.blocks(this.list(doc.blocks));
-    if (body) parts.push(body);
+    parts.push(await this.bodyWithMatter(this.list(doc.blocks)));
     return parts.join("\n\n") + "\n";
   }
 
@@ -256,6 +256,62 @@ export class TypstEmitter {
     return `(${fields.join(", ")})`;
   }
 
+  /** The section function that draws `s`, when it is a book-only special section in a book. */
+  private functionSection(s: AdocNode): SectionFunction | null {
+    const name: string = s.sectname;
+    return this.o.doctype === "book" && SECTION_FUNCTIONS.has(name) ? (name as SectionFunction) : null;
+  }
+
+  private isAbstract(b: AdocNode): boolean {
+    if (b.context === "section") return b.sectname === "abstract" || b.attributes?.style === "abstract";
+    return b.context === "open" && b.style === "abstract";
+  }
+
+  /** The matter a top-level block is written for, from its section style. Anything unrecognised is main matter. */
+  private matterOf(b: AdocNode): Matter {
+    if (this.isAbstract(b)) return "front";
+    if (b.context !== "section") return "main";
+    if (this.bibSections.has(b)) return "back";
+    const name: string = b.sectname;
+    // Book-only styles in an article are ordinary sections.
+    if (this.o.doctype === "article" && BOOK_ONLY_SECTIONS.has(name)) return "main";
+    if (FRONT_MATTER.has(name)) return "front";
+    if (BACK_MATTER.has(name)) return "back";
+    return "main";
+  }
+
+  /**
+   * The document body with the template's matter switches. The document starts as front matter (the title page and the abstract, dedication, preface, …); the first block of anything else starts the main matter, and what follows the last main block (appendix, glossary, bibliography, index, colophon) is the back matter.
+   */
+  private async bodyWithMatter(blocks: AdocNode[]): Promise<string> {
+    // The preamble (what precedes the first section) is not a unit of its own here: its blocks are placed one by one.
+    const flat = blocks.flatMap((b) => (b.context === "preamble" ? this.list<AdocNode>(b.blocks) : [b]));
+    const matters = flat.map((b) => this.matterOf(b));
+    // The front matter is the leading run of front sections, the back matter what follows the last main block: a colophon written before the chapters does not turn the chapters into back matter.
+    const firstNonFront = matters.findIndex((m) => m !== "front");
+    const lastMain = matters.lastIndexOf("main");
+    const segments: Array<{ matter: Matter; blocks: AdocNode[] }> = [{ matter: "front", blocks: [] }];
+    flat.forEach((b, i) => {
+      const phase: Matter =
+        firstNonFront === -1 || i < firstNonFront ? "front" : i <= lastMain ? "main" : "back";
+      const last = segments[segments.length - 1]!;
+      if (last.matter === phase) last.blocks.push(b);
+      else segments.push({ matter: phase, blocks: [b] });
+    });
+    const out: string[] = ["#show: front-matter"];
+    let reached: Matter = "front";
+    for (const seg of segments) {
+      if (seg.matter !== reached) {
+        if (reached === "front") out.push("#show: main-matter");
+        if (seg.matter === "back") out.push("#show: back-matter");
+        reached = seg.matter;
+      }
+      const text = await this.blocks(seg.blocks);
+      if (text) out.push(text);
+    }
+    return out.join("\n\n");
+  }
+
   private containsPart(node: AdocNode): boolean {
     for (const b of this.list<AdocNode>(node.blocks)) {
       if (b.context === "section" && (b.sectname === "part" || b.level === 0)) return true;
@@ -295,7 +351,7 @@ export class TypstEmitter {
         if (b.context !== "section") continue;
         const name = b.sectname;
         const abstract = name === "abstract" || b.attributes?.style === "abstract";
-        if (b.id && (abstract || SECTION_FUNCTIONS.has(name) || this.bibSections.has(b))) ids.push(b.id);
+        if (b.id && (abstract || this.functionSection(b) || this.bibSections.has(b))) ids.push(b.id);
         visit(b);
       }
     };
@@ -509,8 +565,14 @@ export class TypstEmitter {
     // A bibliography's heading is generated by Typst's `#bibliography`, not written here.
     const bib = this.bibSections.get(s);
     const name: string = s.sectname;
+    if (this.o.doctype === "article" && BOOK_ONLY_SECTIONS.has(name)) {
+      this.o.warn(
+        `[${name}] sections only exist in books; "${plainText(s.title ?? "")}" is written as an ordinary section`,
+        s,
+      );
+    }
     // These functions draw their own heading, like the abstract.
-    const ownHeading = SECTION_FUNCTIONS.has(name);
+    const ownHeading = this.functionSection(s) !== null;
     const heading = bib || ownHeading ? "" : `${"=".repeat(level)} ${title}${label}`;
     let placed = false;
     const body = await this.blocks(

@@ -2,12 +2,17 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-article.with(
+#show: settings.with(
+  doctype: "article",
   title: [Code],
   authors: (),
   parts: false,
   attributes: (:),
 )
+
+#show: front-matter
+
+#show: main-matter
 
 #adoc-callout-code(lang: "zig", callouts: ((0, 1), (2, 2)), "const std = @import(\"std\");\n\npub fn main() void {\n    std.debug.print(\"hi\\n\", .{});\n}")
 

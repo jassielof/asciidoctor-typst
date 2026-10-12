@@ -2,7 +2,8 @@
 
 #import "template/lib.typ": *
 
-#show: adoc-book.with(
+#show: settings.with(
+  doctype: "book",
   title: [Reglamentos],
   subtitle: [Universidad Privada de Santa Cruz de la Sierra],
   authors: (
@@ -21,6 +22,8 @@
   attributes: (:),
 )
 
+#show: front-matter
+
 #abstract(title: [Abstract])[
 Este repositorio contiene los reglamentos de la Universidad Privada de Santa Cruz de la Sierra, Bolivia.
 
@@ -35,6 +38,8 @@ Beyond that, where you go is up to you.
 
 #abstract(style: "block", title: [Abstract])[Documentation is a distillation of many long adventures.]
 ]
+
+#show: main-matter
 
 #colophon(title: [Colofón])[
 Los documentos de este repositorio fueron generados gracias a Typst.
@@ -51,6 +56,8 @@ A su vez, estos documentos fueron generados a partir de las versiones originales
 - #link("Reglamento de docencia.pdf")[Reglamento de docencia].
 - #link("Reglamento de pasantía profesional y social.pdf")[Reglamento de pasantía profesional y social].
 - #link("Reglamento interno de uso de biblioteca.pdf")[Reglamento interno de uso de biblioteca].
+
+#show: back-matter
 
 // asciidoctor-typst: the section title "Referencias" is replaced by Typst's generated one
 #bibliography(
