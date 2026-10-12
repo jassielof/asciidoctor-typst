@@ -6,20 +6,36 @@ v2.1, 2026-03-04: Second draft
 :lang: en
 :custom-attribute: custom value
 
-A preamble paragraph before the first section.
+The preamble happens between the end of document header and the first ever section.
+
+So this is part of the preamble too.
 
 == First section
 
-Text in the first section, mentioning {custom-attribute}.
+The first ever section paragraph is automatically the leading paragraph.
+
+The rest are normal paragraphs.
 
 === Nested section
 
-This is the subsection's content.
+[.lead]
+Or else, one can use the `[.lead]` role to mark a paragraph as the leading paragraph.
 
 [[explicit-id]]
 ==== Deeper section with an explicit id
 
-This is the subsubsection's content.
+A <<explicit-id>>.
+
+The paragraph's alignment can be set with the `.text-<alignment>` role, the options are: `.text-left`, `.text-center`, and `.text-right`.
+
+[.text-left]
+To the left.
+
+[.text-center]
+To the center.
+
+[.text-right]
+To the right.
 
 ===== Paragraph
 
@@ -45,8 +61,32 @@ Text.
 
 == Repeated title
 
-Automatic ids are de-duplicated.
+Automatic ids are de-duplicated <<_repeated_title>>.
 
 == Repeated title
 
-The second one gets a numeric suffix.
+The second one gets a numeric suffix <<_repeated_title_2>>.
+
+== Text roles
+
+[.underline]
+Underlined text.
+
+[.overline]
+Overlined text.
+
+[.line-through]
+Strikethrough text.
+
+[.nobreak]
+Disables words within the span of text from being broken. Such as this long sentence that won't make sense eventually.
+
+[.nowrap]
+This will prevent any wrapping at all, how? I've no idea, so we have to try it out on a very long line of text, such as this one, that will go on and on and will break the layout of the page.
+
+[.pre-wrap]
+This will  preserve   whitespace                    and line
+breaks, so that the text
+will be displayed exactly as it is written,
+including any spaces
+and newlines. This is useful for displaying code snippets or other preformatted text.

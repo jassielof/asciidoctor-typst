@@ -25,19 +25,31 @@
 
 #show: main-matter
 
-A preamble paragraph before the first section.
+#preamble[
+  A preamble paragraph before the first section.
 
-= First section <_first_section>
+  So this is part of the preamble too.
+]
 
-Text in the first section, mentioning custom value.
+== First section
 
-== Nested section <_nested_section>
+The first ever section paragraph is automatically the leading paragraph.
 
-This is the subsection’s content.
+The rest are normal paragraphs.
 
-=== Deeper section with an explicit id <explicit-id>
+=== Nested section
 
-This is the subsubsection’s content.
+Or else, one can use the `[.lead]` role to mark a paragraph as the leading paragraph.
+
+==== Deeper section with an explicit id <explicit-id>
+
+#leading-par[The paragraph's alignment can be set with the `.text-<alignment>` role, the options are: `.text-left`, `.text-center`, and `.text-right`.]
+
+#align(left)[To the left.]
+
+#align(center)[To the center.]
+
+#align(right)[To the right.]
 
 ==== Paragraph <_paragraph>
 
@@ -47,14 +59,14 @@ This is the paragraph’s content.
 
 This is the subparagraph’s content.
 
-#heading(level: 2, outlined: false, numbering: none)[A discrete heading] <_a_discrete_heading>
+#discrete-heading(level: 2)[A discrete heading] <_a_discrete_heading>
 
 Not part of the outline.
 
 #adoc-role(("some-role",))[
-= Section with shorthand id and role <role-id>
+  = Section with shorthand id and role <role-id>
 
-Text.
+  Text.
 ]
 
 = Section with #raw("monospace") and #emph[emphasis] in the title <_section_with_monospace_and_emphasis_in_the_title>
@@ -68,3 +80,25 @@ Automatic ids are de-duplicated.
 = Repeated title <_repeated_title_2>
 
 The second one gets a numeric suffix.
+
+= Text roles
+
+#underline[Underlined text.]
+
+#overline[Overlined text.]
+
+#strike[Strikethrough text.]
+
+// TODO: I have no idea what no break, no wrap and pre-wrap could be in Typst, pre-wrap could be raw, but it might contain variables to be replaced.
+[.nobreak]
+Disables words within the span of text from being broken. Such as this long sentence that won't make sense eventually.
+
+[.nowrap]
+This will prevent any wrapping at all, how? I've no idea, so we have to try it out on a very long line of text, such as this one, that will go on and on and will break the layout of the page.
+
+[.pre-wrap]
+This will  preserve   whitespace                    and line
+breaks, so that the text
+will be displayed exactly as it is written,
+including any spaces
+and newlines. This is useful for displaying code snippets or other preformatted text.

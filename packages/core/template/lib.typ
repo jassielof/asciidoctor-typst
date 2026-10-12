@@ -1,4 +1,6 @@
 #import "@preview/mitex:0.2.7": mi, mitex
+#import "lib/paragraph.typ": leading-par, preamble
+#import "lib/heading.typ": discrete-heading
 #import "lib/sections.typ": (
   abstract, acknowledgments, adoc-appendix, adoc-glossary, adoc-index, adoc-partintro, adoc-special, adoc-synopsis,
   adoc-unnumbered, colophon, dedication, preface,
@@ -57,7 +59,10 @@
   fonts: (:),
   body,
 ) = {
-  assert(doctype in ("book", "article"), message: "doctype must be \"book\" or \"article\", found: \"" + str(doctype) + "\"")
+  assert(
+    doctype in ("book", "article"),
+    message: "doctype must be \"book\" or \"article\", found: \"" + str(doctype) + "\"",
+  )
   let authors = authorship.normalize-authors(authors)
   set document(
     title: if title != none { title } else { [] },
@@ -67,10 +72,16 @@
   authorship.set-authors(authors)
   version.set-revision(revision)
   document-info.set-document-info(lang: lang, doctype: doctype)
-  document-info.set-settings(title: title, subtitle: subtitle, logo: logo, parts: parts and doctype == "book", attributes: attributes)
+  document-info.set-settings(
+    title: title,
+    subtitle: subtitle,
+    logo: logo,
+    parts: parts and doctype == "book",
+    attributes: attributes,
+  )
   numbering-lib.chapter-level.update(if parts and doctype == "book" { 2 } else { 1 })
 
-  let fonts = (: ..style.default-fonts.at(doctype), ..fonts)
+  let fonts = (:..style.default-fonts.at(doctype), ..fonts)
   if doctype == "book" {
     show: style.book.with(lang: lang, fonts: fonts, attributes: attributes, parts: parts)
     body
