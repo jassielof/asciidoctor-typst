@@ -1,0 +1,36 @@
+= Text formatting
+:name: Jassiel
+
+== Bold
+
+A bold *word*, and a bold *phrase of text*.
+
+Bold c**hara**cter**s** within a word.
+
+`*_monospace bold italic phrase_*` & ``**__char__**``acter``**__s__**``
+
+== Italic
+
+An italic _word_, and an italic _phrase of text_.
+
+Italic c__hara__cter__s__ within a word.
+
+`*_monospace bold italic phrase_*` & ``**__char__**``acter``**__s__**``
+
+== Monospace
+
+"`Wait!`" Indigo plucked a small vial from her desk's top drawer
+and held it toward us.
+The vial's label read: `E=mc^2^`; the `E` represents _energy_,
+but also pure _genius!_
+
+The command will re``link`` all packages.
+
+`*_monospaced bold italic_*`
+
+== Literal monospace
+
+You can reference the value of a document attribute using
+the syntax `+{name}+`, where `{name}` is the attribute name.
+
+`pass:[++]` is the increment operator in C.
