@@ -225,7 +225,7 @@ describe("sections", () => {
     const out = await typst("article");
     expect(out).toContain("<role-id>");
     expect(out).toContain('#adoc-role(("some-role",))[');
-    expect(out).toContain("#heading(level: 2, outlined: false, numbering: none)[A discrete heading]");
+    expect(out).toContain("#discrete-heading(level: 2)[A discrete heading]");
   });
   test("special sections without a template function wrap their heading and content", async () => {
     const out = await typst("book-multi-part");

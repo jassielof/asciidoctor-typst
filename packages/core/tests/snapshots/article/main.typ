@@ -26,30 +26,40 @@
 #show: main-matter
 
 #preamble[
-  A preamble paragraph before the first section.
+  The preamble happens between the end of document header and the first ever section.
 
   So this is part of the preamble too.
 ]
 
-= First section
+= First section <_first_section>
 
 The first ever section paragraph is automatically the leading paragraph.
 
 The rest are normal paragraphs.
 
-== A nested subsection
+== A subsection <_a_subsection>
 
-Or else, one can use the `[.lead]` role to mark a paragraph as the leading paragraph.
+#adoc-role(("lead",))[
+Or else, one can use the #raw("[.lead]") role to mark a paragraph as the leading paragraph.
+]
 
 === Deeper section with an explicit id <explicit-id>
 
-#leading-par[The paragraph's alignment can be set with the `.text-<alignment>` role, the options are: `.text-left`, `.text-center`, and `.text-right`.]
+A #link(<explicit-id>)[Deeper section with an explicit id].
 
-#align(left)[To the left.]
+The paragraph’s alignment can be set with the #raw(".text-<alignment>") role, the options are: #raw(".text-left"), #raw(".text-center"), and #raw(".text-right").
 
-#align(center)[To the center.]
+#adoc-role(("text-left",))[
+To the left.
+]
 
-#align(right)[To the right.]
+#adoc-role(("text-center",))[
+To the center.
+]
+
+#adoc-role(("text-right",))[
+To the right.
+]
 
 ==== Paragraph <_paragraph>
 
@@ -64,9 +74,9 @@ This is the subparagraph’s content.
 Not part of the outline.
 
 #adoc-role(("some-role",))[
-  = Section with shorthand id and role <role-id>
+= Section with shorthand id and role <role-id>
 
-  Text.
+Text.
 ]
 
 = Section with #raw("monospace") and #emph[emphasis] in the title <_section_with_monospace_and_emphasis_in_the_title>
@@ -75,30 +85,38 @@ Text.
 
 = Repeated title <_repeated_title>
 
-Automatic ids are de-duplicated.
+Automatic ids are de-duplicated #link(<_repeated_title>)[Repeated title].
 
 = Repeated title <_repeated_title_2>
 
-The second one gets a numeric suffix.
+The second one gets a numeric suffix #link(<_repeated_title_2>)[Repeated title].
 
-= Text roles
+= Text roles <_text_roles>
 
-#underline[Underlined text.]
+#adoc-role(("underline",))[
+Underlined text.
+]
 
-#overline[Overlined text.]
+#adoc-role(("overline",))[
+Overlined text.
+]
 
-#strike[Strikethrough text.]
+#adoc-role(("line-through",))[
+Strikethrough text.
+]
 
-// TODO: I have no idea what no break, no wrap and pre-wrap could be in Typst, pre-wrap could be raw, but it might contain variables to be replaced.
-[.nobreak]
-Disables words within the span of text from being broken. Such as this long sentence that won't make sense eventually.
+#adoc-role(("nobreak",))[
+Disables words within the span of text from being broken. Such as this long sentence that won’t make sense eventually.
+]
 
-[.nowrap]
-This will prevent any wrapping at all, how? I've no idea, so we have to try it out on a very long line of text, such as this one, that will go on and on and will break the layout of the page.
+#adoc-role(("nowrap",))[
+This will prevent any wrapping at all, how? I’ve no idea, so we have to try it out on a very long line of text, such as this one, that will go on and on and will break the layout of the page.
+]
 
-[.pre-wrap]
+#adoc-role(("pre-wrap",))[
 This will  preserve   whitespace                    and line
 breaks, so that the text
 will be displayed exactly as it is written,
 including any spaces
 and newlines. This is useful for displaying code snippets or other preformatted text.
+]

@@ -17,27 +17,29 @@
 
 #show: main-matter
 
-#link("https://asciidoctor.org")[Asciidoctor] is a fast, open source, Ruby-based text processor for parsing AsciiDoc® into a document model and converting it to output formats such as HTML 5, DocBook 5, manual pages, PDF, EPUB 3, and other formats.
+#preamble[
+  #link("https://asciidoctor.org")[Asciidoctor] is a fast, open source, Ruby-based text processor for parsing AsciiDoc® into a document model and converting it to output formats such as HTML 5, DocBook 5, manual pages, PDF, EPUB 3, and other formats.
 
-Asciidoctor also has an ecosystem of extensions, converters, build plugins, and tools to help you author and publish content written in #link("https://docs.asciidoctor.org/asciidoctor/latest/#relationship-to-asciidoc")[AsciiDoc].
-You can find the documentation for these projects at #link("https://docs.asciidoctor.org").
+  Asciidoctor also has an ecosystem of extensions, converters, build plugins, and tools to help you author and publish content written in #link("https://docs.asciidoctor.org/asciidoctor/latest/#relationship-to-asciidoc")[AsciiDoc].
+  You can find the documentation for these projects at #link("https://docs.asciidoctor.org").
 
-In addition to running on Ruby, Asciidoctor can be executed on a JVM using #link("https://github.com/asciidoctor/asciidoctorj")[AsciidoctorJ] or in any JavaScript environment using #link("https://github.com/asciidoctor/asciidoctor.js")[Asciidoctor.js].
+  In addition to running on Ruby, Asciidoctor can be executed on a JVM using #link("https://github.com/asciidoctor/asciidoctorj")[AsciidoctorJ] or in any JavaScript environment using #link("https://github.com/asciidoctor/asciidoctor.js")[Asciidoctor.js].
 
-This document is also available in the following languages:\
-#link("README-zh_CN.adoc")[简体中文]
-|
-#link("README-de.adoc")[Deutsch]
-|
-#link("README-fr.adoc")[Français]
-|
-#link("README-jp.adoc")[日本語]
+  This document is also available in the following languages:\
+  #link("README-zh_CN.adoc")[简体中文]
+  |
+  #link("README-de.adoc")[Deutsch]
+  |
+  #link("README-fr.adoc")[Français]
+  |
+  #link("README-jp.adoc")[日本語]
 
-#adoc-role(("compact",))[
-#adoc-block-title[Key documentation]
-- #link("https://docs.asciidoctor.org/asciidoctor/latest/")[Asciidoctor Documentation]
-- #link("https://docs.asciidoctor.org/asciidoc/latest/")[AsciiDoc Language Documentation]
-- #link("https://docs.asciidoctor.org/asciidoc/latest/syntax-quick-reference/")[AsciiDoc Syntax Quick Reference]
+  #adoc-role(("compact",))[
+  #adoc-block-title[Key documentation]
+  - #link("https://docs.asciidoctor.org/asciidoctor/latest/")[Asciidoctor Documentation]
+  - #link("https://docs.asciidoctor.org/asciidoc/latest/")[AsciiDoc Language Documentation]
+  - #link("https://docs.asciidoctor.org/asciidoc/latest/syntax-quick-reference/")[AsciiDoc Syntax Quick Reference]
+  ]
 ]
 
 = Sponsors <sponsors>

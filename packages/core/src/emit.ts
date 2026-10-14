@@ -284,8 +284,27 @@ export class TypstEmitter {
    * The document body with the template's matter switches. The document starts as front matter (the title page and the abstract, dedication, preface, …); the first block of anything else starts the main matter, and what follows the last main block (appendix, glossary, bibliography, index, colophon) is the back matter.
    */
   private async bodyWithMatter(blocks: AdocNode[]): Promise<string> {
-    // The preamble (what precedes the first section) is not a unit of its own here: its blocks are placed one by one.
-    const flat = blocks.flatMap((b) => (b.context === "preamble" ? this.list<AdocNode>(b.blocks) : [b]));
+    // The preamble (what precedes the first section) in an article is wrapped in `#preamble`. Any abstract stays in front matter; in a book, pre-section content is unpacked into individual blocks.
+    const flat: AdocNode[] = [];
+    for (const b of blocks) {
+      if (b.context === "preamble") {
+        const children = this.list<AdocNode>(b.blocks);
+        const abstracts = children.filter((c) => this.isAbstract(c));
+        const nonAbstracts = children.filter((c) => !this.isAbstract(c));
+        if (abstracts.length > 0) flat.push(...abstracts);
+        if (nonAbstracts.length > 0) {
+          if (this.o.doctype === "article") {
+            const copy = Object.create(b) as AdocNode;
+            copy.blocks = nonAbstracts;
+            flat.push(copy);
+          } else {
+            flat.push(...nonAbstracts);
+          }
+        }
+      } else {
+        flat.push(b);
+      }
+    }
     const matters = flat.map((b) => this.matterOf(b));
     // The front matter is the leading run of front sections, the back matter what follows the last main block: a colophon written before the chapters does not turn the chapters into back matter.
     const firstNonFront = matters.findIndex((m) => m !== "front");
@@ -442,10 +461,12 @@ export class TypstEmitter {
       case "floating_title": {
         const level = this.headingLevel(b.level);
         const label = b.id ? ` <${labelName(b.id)}>` : "";
-        return `#heading(level: ${level}, outlined: false, numbering: none)[${this.inline(b.title)}]${label}`;
+        return `#discrete-heading(level: ${level})[${this.inline(b.title)}]${label}`;
       }
-      case "preamble":
-        return this.blocks(this.list(b.blocks));
+      case "preamble": {
+        const body = await this.blocks(this.list(b.blocks));
+        return body === "" ? "" : `#preamble[\n${indent(body, "  ")}\n]`;
+      }
       case "paragraph":
         return this.withTitle(b, this.inline(await contentText(b)));
       case "listing":

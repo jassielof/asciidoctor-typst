@@ -15,7 +15,9 @@
 
 #show: main-matter
 
-Cited as #cite(<no>)s and, at the end of a sentence, @no. Section: Referencias.
+#preamble[
+  Cited as #cite(<no>)s and, at the end of a sentence, @no. Section: Referencias.
+]
 
 = Chapter <_chapter>
 

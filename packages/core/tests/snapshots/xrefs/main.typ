@@ -14,11 +14,13 @@
 
 #show: main-matter
 
-See #link(<target>)[Target section], #link(<target>)[custom text] and #link(<target>)[an xref macro].
+#preamble[
+  See #link(<target>)[Target section], #link(<target>)[custom text] and #link(<target>)[an xref macro].
 
-Also #link(<_a_section>)[A section] and #link(<anchored>)[\[anchored\]].
+  Also #link(<_a_section>)[A section] and #link(<anchored>)[\[anchored\]].
 
-#metadata(none)<anchored>A paragraph with an inline anchor.
+  #metadata(none)<anchored>A paragraph with an inline anchor.
+]
 
 = A section <_a_section>
 
