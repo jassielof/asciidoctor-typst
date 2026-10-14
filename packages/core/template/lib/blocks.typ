@@ -1,4 +1,5 @@
 // AsciiDoc blocks and inline concepts that have no Typst equivalent. Plain, unstyled defaults: restyle freely, the converter only relies on the signatures.
+#import "paragraph.typ": leading-par
 
 // ------------------------------------------------------------------ blocks
 
@@ -72,10 +73,34 @@
 // ------------------------------------------------------------------ inline
 
 /// Monospace text that needs nested formatting (plain monospace uses `raw`).
-#let adoc-mono(body) = text(font: ("DejaVu Sans Mono", "Consolas", "Liberation Mono"), body)
+#let adoc-mono(body) = text(font: "DejaVu Sans Mono", size: 0.8em, body)
 
 /// Text with AsciiDoc roles, e.g. `[.lead]`. `roles` is an array of strings.
-#let adoc-role(roles, id: none, body) = body
+#let adoc-role(roles, id: none, body) = {
+  let content = body
+  for role in roles {
+    if role == "lead" {
+      content = leading-par(content)
+    } else if role == "text-left" {
+      content = align(left, content)
+    } else if role == "text-center" {
+      content = align(center, content)
+    } else if role == "text-right" {
+      content = align(right, content)
+    } else if role == "underline" {
+      content = underline(content)
+    } else if role == "overline" {
+      content = overline(content)
+    } else if role == "line-through" {
+      content = strike(content)
+    } else if role == "nobreak" {
+      content = text(hyphenate: false, content)
+    } else if role == "nowrap" {
+      content = box(content)
+    }
+  }
+  content
+}
 
 #let adoc-kbd(..keys) = {
   let boxes = keys
