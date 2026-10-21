@@ -2,6 +2,7 @@
 
 #import "template/lib.typ": *
 
+// TODO: Since all of these parameters are defaults, just using `#show: settings` is enough.
 #show: settings.with(
   doctype: "article",
   title: none,
@@ -10,10 +11,12 @@
   attributes: (:),
 )
 
+// TODO: There's no front matter in the AsciiDoc source
 #show: front-matter
 
 #show: main-matter
 
+// TODO: Shoul be using lib#paragraph.leading-par instead of adoc-role()
 #adoc-role(("lead",))[
-This is a leading paragraph.
+  This is a leading paragraph.
 ]
