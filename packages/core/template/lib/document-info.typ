@@ -26,14 +26,16 @@
 /// The rest of what the document header sets, kept for the front matter (the title page and the table of contents are drawn there, not by `settings`).
 ///
 /// - `title`, `subtitle`: content
+/// - `authors`: array of author dictionaries
 /// - `logo`: `none`, or `(image:, align:)`
 /// - `parts`: whether the book has parts
 /// - `attributes`: the other header attributes (`toc`, `sectnums`, ...)
-#let settings-state = state("adoc-settings", (title: none, subtitle: none, logo: none, parts: false, attributes: (:)))
+#let settings-state = state("adoc-settings", (title: none, subtitle: none, authors: (), logo: none, parts: false, attributes: (:)))
 
-#let set-settings(title: none, subtitle: none, logo: none, parts: false, attributes: (:)) = settings-state.update((
+#let set-settings(title: none, subtitle: none, authors: (), logo: none, parts: false, attributes: (:)) = settings-state.update((
   title: title,
   subtitle: subtitle,
+  authors: authors,
   logo: logo,
   parts: parts,
   attributes: attributes,

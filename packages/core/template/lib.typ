@@ -7,10 +7,7 @@
 )
 #import "lib/blocks.typ": *
 #import "lib/authorship.typ" as authorship
-#import "lib/authorship.typ": (
-  author-count, author-email, author-field, author-firstname, author-initials, author-lastname, author-middlename,
-  author-name, author-names, authors, join-names, normalize-authors, parse-author,
-)
+#import "lib/authorship.typ": join-names, normalize-authors, parse-author
 #import "lib/numbering.typ" as numbering-lib
 #import "lib/style.typ" as style
 #import "lib/title-page.typ" as title-page
@@ -45,7 +42,7 @@
 /// - `fonts`: overrides of `(body:, title:, mono:)`; the defaults depend on the type (`lib/style.typ`).
 /// - `attributes`: the other attributes set by the document header (strings), such as `toc` and `sectnums`. Those that have their own argument are not repeated here.
 ///
-/// The authors, the revision, the language and the document type are also stored in states (`lib/authorship.typ`, `lib/version.typ`, `lib/document-info.typ`), which is what references in the document body read.
+/// The revision, the language and the document type are also stored in states (`lib/version.typ`, `lib/document-info.typ`), which is what references in the document body read.
 #let settings(
   doctype: "article",
   title: none,
@@ -68,13 +65,13 @@
     title: if title != none { title } else { [] },
     author: authors.map(a => a.at("name", default: "")),
   )
-  // Make the document information available to the whole template (`author-field`, `revision-field`, `document-lang`, ...), to the front matter and to the references in the body.
-  authorship.set-authors(authors)
+  // Make the document information available to the whole template (`revision-field`, `document-lang`, ...), to the front matter and to the references in the body.
   version.set-revision(revision)
   document-info.set-document-info(lang: lang, doctype: doctype)
   document-info.set-settings(
     title: title,
     subtitle: subtitle,
+    authors: authors,
     logo: logo,
     parts: parts and doctype == "book",
     attributes: attributes,
@@ -98,7 +95,7 @@
   let info = document-info.settings-state.get()
   let doctype = document-info.doctype-state.get()
   let revision = version.revision.get()
-  let authors = authorship.authors.get()
+  let authors = info.authors
   let toc = "toc" in info.attributes
 
   if doctype == "book" {

@@ -15,7 +15,7 @@ import {
 import type { AssetBundle, OutputFile } from "./assets.ts";
 import { ASCIIMATH_UNSUPPORTED, UnsupportedSyntaxError } from "./errors.ts";
 import { usesTypstMath } from "./math.ts";
-import { setDocumentInfo, type AuthorField } from "./info-refs.ts";
+import { setDocumentInfo } from "./info-refs.ts";
 import { buildBibSection, toHayagriva, type BibSection } from "./bibliography.ts";
 import { dimension, extractCallouts, plainText, renderInline, setCitable, setUnlabelled } from "./inline.ts";
 
@@ -59,15 +59,6 @@ const STRUCTURED_ATTRIBUTES = new Set([
   "source-highlighter",
   "stem",
 ]);
-
-/**
- * `authorinitials` as defined by the AsciiDoc docs: the first character of the first, middle and last name, up to three. Asciidoctor derives them for the author line but not for an author given by attributes; the template derives them the same way (`parse-author`), so the value used where a lookup is impossible matches what the lookup would give.
- */
-function deriveInitials(a: AdocAuthor): string | undefined {
-  const parts = [a.getFirstName(), a.getMiddleName(), a.getLastName()].filter((p): p is string => !!p);
-  const initials = parts.map((p) => [...p][0]!).join("");
-  return initials === "" ? undefined : initials.slice(0, 3);
-}
 
 /**
  * The author's name as it is written on the author line: words separated by spaces, and `_` joining the words of one name (`Ovando_F.`). Asciidoctor has already turned those underscores into spaces, which would make `Jassiel Ovando F.` split into three names on the Typst side; the parts it derived tell where the words were joined. The template derives first, middle and last name and the initials from this form, by the same rules.
@@ -138,7 +129,6 @@ export class TypstEmitter {
     this.collectBibliographies(doc);
     this.collectUnlabelled(doc);
     setDocumentInfo({
-      authors: this.authorRecords(),
       revision: this.revisionRecord(),
       lang: this.o.attributes.lang,
       doctype: this.o.doctype,
@@ -177,23 +167,6 @@ export class TypstEmitter {
 
     parts.push(await this.bodyWithMatter(this.list(doc.blocks)));
     return parts.join("\n\n") + "\n";
-  }
-
-  /**
-   * Authors as derived by Asciidoctor from the author line (one or many) or the author attributes (one). Each entry carries the same parts the `{firstname_2}`-style attributes do. They are the data behind the template's authors state: references in the text become lookups into it (see `info-refs.ts`), so editing the authors in Typst updates them all.
-   */
-  private authorRecords(): Array<Partial<Record<AuthorField, string>>> {
-    return this.doc.getAuthors().map((a) => {
-      const fields: Array<[AuthorField, string | undefined]> = [
-        ["name", a.getName()],
-        ["firstname", a.getFirstName()],
-        ["middlename", a.getMiddleName()],
-        ["lastname", a.getLastName()],
-        ["initials", a.getInitials() || deriveInitials(a)],
-        ["email", a.getEmail()],
-      ];
-      return Object.fromEntries(fields.filter((f): f is [AuthorField, string] => !!f[1]));
-    });
   }
 
   private authorsArg(): string {

@@ -13,8 +13,6 @@
 /// - `initials`: the first character of each of those, up to three
 ///
 /// A name of more than three words is kept whole as the first name, as in AsciiDoc. Keys given explicitly in the dictionary win over the derived ones, so a name can be corrected by hand.
-///
-/// The derived authors are stored in a `state`, so the template and the document can read them from anywhere (`author-field`, `author-firstname`, ...). A reference such as `{lastname_2}` in the AsciiDoc source becomes `#author-field(n: 2, field: "lastname")`, so changing an author on the Typst side updates every reference.
 
 /// The parts of a name as AsciiDoc derives them: an array of at most three names, or a single whole name when it has more than three words.
 #let name-parts(name) = {
@@ -41,45 +39,7 @@
 /// Completes every author of `list` (see `parse-author`). A pure function.
 #let normalize-authors(list) = list.map(parse-author)
 
-/// All authors of the document, in order, complete with their derived parts. Filled by `adoc-book` / `adoc-article` through `set-authors`.
-#let authors = state("authors", ())
-
-/// Stores the authors (derived parts included). Must be placed in the document (it returns content).
-#let set-authors(list) = authors.update(normalize-authors(list))
-
 /// The names of `list`, joined with `delimiter`; a pure function, usable without `context`. `list` is normalised first, so names written with `_` print with spaces.
 #let join-names(list, delimiter: ", ") = {
   normalize-authors(list).map(a => a.at("name", default: "")).filter(n => n != "").join(delimiter)
 }
-
-/// A field of the `n`-th author, 1-based like `{lastname_2}` in AsciiDoc. `field` is one of `"name"`, `"firstname"`, `"middlename"`, `"lastname"`, `"initials"`, `"email"`.
-///
-/// Needs a document context to read the state, so it returns content (or `default`).
-#let author-field(n: 1, field: "name", default: none) = context {
-  let list = authors.get()
-  if n >= 1 and n <= list.len() { list.at(n - 1).at(field, default: default) } else { default }
-}
-
-/// The full name of the `n`-th author.
-#let author-name(n: 1, default: none) = author-field(n: n, field: "name", default: default)
-
-/// The first name of the `n`-th author.
-#let author-firstname(n: 1, default: none) = author-field(n: n, field: "firstname", default: default)
-
-/// The middle name of the `n`-th author.
-#let author-middlename(n: 1, default: none) = author-field(n: n, field: "middlename", default: default)
-
-/// The last name of the `n`-th author.
-#let author-lastname(n: 1, default: none) = author-field(n: n, field: "lastname", default: default)
-
-/// The initials of the `n`-th author.
-#let author-initials(n: 1, default: none) = author-field(n: n, field: "initials", default: default)
-
-/// The email of the `n`-th author.
-#let author-email(n: 1, default: none) = author-field(n: n, field: "email", default: default)
-
-/// The names of all authors, joined with `delimiter`.
-#let author-names(delimiter: ", ") = context join-names(authors.get(), delimiter: delimiter)
-
-/// How many authors the document has (`authorcount`).
-#let author-count() = context authors.get().len()

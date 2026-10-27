@@ -62,7 +62,7 @@ const NOISE =
   /^(?:doc|local)(?:date|time|year|datetime)$|^doc(?:file|filesuffix|name|dir|title)$|^doctype-|^(?:author|firstname|middlename|lastname|authorinitials|authors|authorcount|email|revnumber|revdate|revremark)(?:_\d+)?$|^(?:asciidoctor|safe-mode|backend-|basebackend-|filetype-)/;
 
 export function convert(source: string, options: ConvertOptions = {}): Promise<ConvertResult> {
-  // References to authors, revision, language and document type become lookups into the template's states instead of frozen values.
+  // References to revision, language and document type become lookups into the template's states instead of frozen values.
   return withInfoReferences(() => convertDocument(source, options));
 }
 

@@ -660,14 +660,11 @@ describe("upsa-regulations: authorship, revision and title page", () => {
     expect(out).not.toContain("lastname:");
     expect(out).not.toContain("initials:");
   });
-  test("author references in the body are lookups into the authors state, not values", async () => {
+  test("author references in the body are inserted directly as values", async () => {
     const out = await typst("upsa-regulations");
     // {authorinitials_1}, {lastname_1}, {lastname_2}
-    expect(out).toContain(
-      '#author-field(field: "initials"), #author-field(field: "lastname"), #author-field(n: 2, field: "lastname")',
-    );
-    // Editing an author in Typst must reach every reference, so no value is frozen into the text.
-    expect(out).not.toContain("JO, Ovando F., Y.");
+    expect(out).toContain("JO, Ovando F., Y.");
+    expect(out).not.toContain("#author-field");
     expect(out).not.toContain("{authorinitials_1}");
   });
   test("aggregate references and escapes", async () => {
@@ -675,7 +672,9 @@ describe("upsa-regulations: authorship, revision and title page", () => {
     const { typst } = await convert(
       "= T\nA One; B Two\n\nAll: {authors}. Count: {authorcount}. Literal: \\{lastname_1}. Own: {mine}.\n",
     );
-    expect(typst).toContain("All: #author-names(). Count: #author-count(). Literal: {lastname\\_1}.");
+    expect(typst).toContain("All: A One, B Two. Count: 2. Literal: {lastname\\_1}.");
+    expect(typst).not.toContain("#author-names");
+    expect(typst).not.toContain("#author-count");
   });
   test("a reference inside a string cannot be a lookup and gets the current value", async () => {
     const { convert } = await import("../src/convert.ts");

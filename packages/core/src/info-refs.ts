@@ -1,10 +1,8 @@
 /**
- * References to document information: authors (`{lastname_2}`, `{authors}`), revision (`{revnumber}`, `{version-label}`), language (`{lang}`) and document type (`{doctype}`).
+ * References to document information: revision (`{revnumber}`, `{version-label}`), language (`{lang}`) and document type (`{doctype}`).
  *
- * Asciidoctor replaces them with their value while parsing. That would freeze the values into the Typst text, so changing one on the Typst side (the `authors:` / `revision:` / `lang:` argument of the document wrapper, or the matching `set-*` function) would leave every reference stale. Instead they become lookups in the template's states:
+ * Asciidoctor replaces them with their value while parsing. That would freeze the values into the Typst text, so changing one on the Typst side (the `revision:` / `lang:` argument of the document wrapper, or the matching `set-*` function) would leave every reference stale. Instead they become lookups in the template's states:
  *
- *   {lastname_2}   ->  #author-field(n: 2, field: "lastname")
- *   {authors}      ->  #author-names()
  *   {revnumber}    ->  #revision-field("number")
  *   {version-label}->  #revision-field("label")
  *   {lang}         ->  #document-lang()
@@ -22,32 +20,18 @@ const OPEN = "";
 const SEP = "";
 const CLOSE = "";
 
-/** Matches a placeholder: field name, then the 1-based author index (empty when not per author). */
+/** Matches a placeholder: field name, then the 1-based index (empty when not indexed). */
 export const PLACEHOLDER = new RegExp(`${OPEN}([a-z]+)${SEP}(\\d*)${CLOSE}`, "g");
-
-export type AuthorField = "name" | "firstname" | "middlename" | "lastname" | "initials" | "email";
 
 /** The revision keys the template receives (`revision:`), and the language and document type. */
 export interface DocumentInfo {
-  authors: Array<Partial<Record<AuthorField, string>>>;
   revision: { number?: string; date?: string; remark?: string; label?: string };
   lang?: string;
   doctype?: string;
 }
 
-const PER_AUTHOR: Record<string, AuthorField> = {
-  author: "name",
-  firstname: "firstname",
-  middlename: "middlename",
-  lastname: "lastname",
-  authorinitials: "initials",
-  email: "email",
-};
-
 /** Placeholder field names of the non-author references, by attribute name. */
 const SINGLE: Record<string, string> = {
-  authors: "authors",
-  authorcount: "count",
   revnumber: "revnumber",
   revdate: "revdate",
   revremark: "revremark",
@@ -58,7 +42,6 @@ const SINGLE: Record<string, string> = {
 
 interface Reference {
   field: string;
-  /** 1-based author index; 0 when the reference is not per author. */
   n: number;
 }
 
@@ -66,9 +49,7 @@ interface Reference {
 function referenceFor(attribute: string): Reference | null {
   const single = SINGLE[attribute];
   if (single) return { field: single, n: 0 };
-  const m = /^(author|firstname|middlename|lastname|authorinitials|email)(?:_(\d+))?$/.exec(attribute);
-  if (!m) return null;
-  return { field: PER_AUTHOR[m[1]!]!, n: m[2] ? Number(m[2]) : 1 };
+  return null;
 }
 
 const placeholder = (r: Reference) => `${OPEN}${r.field}${SEP}${r.n || ""}${CLOSE}`;
@@ -144,36 +125,24 @@ const REVISION_KEY: Record<string, string> = {
 };
 
 /** The Typst call that reads a placeholder's value from the template's states. */
-export function referenceCode(field: string, n: number): string {
-  if (field === "authors") return "#author-names()";
-  if (field === "count") return "#author-count()";
+export function referenceCode(field: string, _n: number): string {
   if (field === "lang") return "#document-lang()";
   if (field === "doctype") return "#document-doctype()";
   const revision = REVISION_KEY[field];
   if (revision) return `#revision-field(${str(revision)})`;
-  const args: string[] = [];
-  if (n !== 1) args.push(`n: ${n}`);
-  if (field !== "name") args.push(`field: ${str(field)}`);
-  return `#author-field(${args.join(", ")})`;
+  throw new Error(`unknown info reference: ${field}`);
 }
 
 /** The information as the template receives it. Set once the document has been loaded. */
-let info: DocumentInfo = { authors: [], revision: {} };
+let info: DocumentInfo = { revision: {} };
 
 export function setDocumentInfo(value: DocumentInfo): void {
   info = value;
 }
 
 /** The current value of a placeholder, for contexts that cannot hold a lookup. */
-export function literalFor(field: string, n: number): string {
+export function literalFor(field: string, _n: number): string {
   switch (field) {
-    case "authors":
-      return info.authors
-        .map((a) => a.name ?? "")
-        .filter(Boolean)
-        .join(", ");
-    case "count":
-      return String(info.authors.length);
     case "lang":
       return info.lang ?? "";
     case "doctype":
@@ -183,7 +152,7 @@ export function literalFor(field: string, n: number): string {
   }
   const revision = REVISION_KEY[field];
   if (revision) return info.revision[revision as keyof DocumentInfo["revision"]] ?? "";
-  return info.authors[n - 1]?.[field as AuthorField] ?? "";
+  return "";
 }
 
 /**

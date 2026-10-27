@@ -27,7 +27,7 @@
 #abstract(title: [Abstract])[
 Este repositorio contiene los reglamentos de la Universidad Privada de Santa Cruz de la Sierra, Bolivia.
 
-#author-field(field: "initials"), #author-field(field: "lastname"), #author-field(n: 2, field: "lastname")
+JO, Ovando F., Y.
 
 #abstract(style: "block")[
 This article will take you on a wonderful adventure of knowledge.
